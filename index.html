@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101318">
-<title>Number Ball — Live Scorekeeper v0.7.1</title>
+<title>Number Ball — Live Scorekeeper v0.8.0</title>
 <style>
 :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;--bg:#101318;--panel:#1b2028;--panel2:#232a34;--line:#333c4a;--text:#f1f4fa;--dim:#a4afbf;--gold:#dfb978;--green:#65d9a5;--red:#f58e9a}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 35% -9%,#1c2636,transparent 58%),var(--bg);color:var(--text);min-height:100vh;padding:24px 16px 70px}button,input,select{font:inherit}button{border:0;color:inherit;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-offset:3px}.wrap{max-width:1100px;margin:0 auto}
@@ -158,32 +158,119 @@ body{background:#101318;color:var(--text)}
 .libraryPrivacy{font-size:12px;color:var(--dim);line-height:1.6;margin:20px 0 0}
 .sessionsScreen .empty{border:1px dashed var(--line);border-radius:14px;padding:30px 15px}
 @media(max-width:700px){.sessionsScreen{padding-bottom:25px}.sessionPageHead h1{font-size:26px}.sessionPageHead .secondary{padding:10px}.savedRoom{padding:9px}.savedRoomCode{font-size:15px}.savedRoomPeople{font-size:11px}}
+
+/* V0.8.0: session library is home; setup takes place in a mandatory modal. */
+[hidden]{display:none!important}
+body{background:#101318}
+.sessionsScreen{max-width:820px;margin:5px auto 0;padding:8px 0 60px}
+.homeBrand{display:flex;align-items:center;gap:14px;margin:5px 0 24px}
+.homeBrand .ball{width:50px;height:50px;font-size:22px}
+.homeBrand h1{font-size:30px;letter-spacing:-.045em}
+.homeBrand .muted{font-size:13px}
+.libraryActions{margin:0 0 28px;gap:12px}
+.libraryActions button{min-height:62px;font-weight:850;font-size:15px}
+.listHeading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 12px}
+.listHeading h2{font-size:17px}
+.searchWrap{margin-bottom:12px}
+.searchWrap input{background:#161b24}
+.sessionsList{margin-top:0}
+.savedRoom{padding:12px;border-color:#3c4655;background:#1c232d}
+.savedRoomInfo{padding:9px 8px}
+.savedRoomCode{font-size:19px;color:#f3f5fa}
+.savedRoomPeople{font-size:13px}
+.savedRoomMeta{font-size:11px}
+.libraryPrivacy{margin-top:22px}
+.scoreTopbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.backHome{background:transparent;color:#aabbd2;border:1px solid #384452;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:800}
+.scoreTopActions{display:flex;align-items:center;gap:8px}
+.scoreTopActions .headbtn{padding:10px 13px}
+.slimHeader{margin:0 0 10px}
+.slimHeader .ball{width:37px;height:37px;font-size:17px}
+.slimHeader h1{font-size:23px}
+.slimHeader .eyebrow{font-size:9px}
+.roomLine{border:1px solid #374150;border-radius:12px;background:#1a2029;padding:9px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.roomLine .roomCode{background:#293344;padding:8px 11px}
+.roomLine .roomInfo{flex-wrap:nowrap;gap:9px}
+.shareIcon{background:#283443;border:1px solid #4a5870;border-radius:9px;padding:9px 14px;color:#e5eaf2;font-size:12px;font-weight:750;white-space:nowrap}
+.miniStats{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.miniStat{background:#1b222c;border:1px solid #323f50;border-radius:12px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.miniStat span{font-size:12px;color:var(--dim)}
+.miniStat strong{font-size:20px;font-weight:850;font-variant-numeric:tabular-nums}
+.miniStat .poolText{color:var(--gold)}
+.sectionhead{margin-top:15px}
+.main{margin-top:12px}
+.settingsDanger{border-top:1px solid var(--line);margin-top:16px;padding-top:14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dangerText{background:transparent;color:#fb9ea7;border:1px solid #804e57;border-radius:9px;padding:9px 12px;font-size:12px;font-weight:800}
+.setupDialog{width:min(630px,calc(100vw - 18px))}
+.setupDialog .modalhead{margin-bottom:6px}
+.setupDialog .modalhead h2{font-size:23px}
+.newNameGrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;margin-top:5px}
+.newNameGrid input{width:100%}
+.formSection{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}
+.formSectionTitle{font-size:14px;font-weight:850;display:flex;justify-content:space-between}
+.ratesGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.ratesGrid .stepbtn{height:41px;flex-basis:33px;font-size:20px}
+.ratesGrid .stepper{gap:4px}
+.ratesGrid .stepper input{padding:9px 3px;font-size:15px}
+.formError{margin:15px 0 0;padding:11px 13px;border-radius:10px;border:1px solid #964a57;background:#422630;color:#ffc8d0;font-size:12px;line-height:1.5}
+.joinDialog{width:min(460px,calc(100vw - 18px))}
+.joinDialog #joinCode{text-transform:uppercase;font-size:24px;font-weight:850;letter-spacing:.15em;text-align:center}
+@media(max-width:700px){
+ body{padding:13px 12px calc(175px + env(safe-area-inset-bottom,0px))}
+ body:has(.sessionsScreen:not([hidden])){padding-bottom:22px}
+ .sessionsScreen{padding:10px 0 25px}
+ .homeBrand{gap:12px;margin:0 0 23px}
+ .homeBrand h1{font-size:27px}
+ .homeBrand .ball{width:45px;height:45px;font-size:19px}
+ .libraryActions button{min-height:54px;font-size:13px}
+ .savedRoom{padding:9px}
+ .scoreTopbar{margin-bottom:9px}
+ .backHome{padding:9px 10px;font-size:11px}
+ .scoreTopActions{gap:6px}
+ .scoreTopActions .headbtn{padding:9px 10px;font-size:11px}
+ .slimHeader{margin-bottom:8px}
+ .slimHeader .ball{width:32px;height:32px;font-size:15px;display:grid}
+ .slimHeader h1{font-size:20px}
+ .roomLine{padding:8px 9px;margin-bottom:9px}
+ .roomLine .roomCode{font-size:12px}
+ .roomStatus{font-size:10px}
+ .shareIcon{font-size:11px;padding:8px}
+ .miniStat{padding:9px 11px;min-height:41px}
+ .miniStat strong{font-size:18px}
+ .sectionhead{margin:12px 0 8px}
+ .ratesGrid{display:grid;grid-template-columns:1fr;gap:6px}
+ .ratesGrid>div{display:flex;align-items:center;gap:12px;justify-content:space-between}
+ .ratesGrid>div .field{flex:1;margin:0}
+ .ratesGrid>div .stepper{width:min(215px,70%);flex-shrink:0}
+ .ratesGrid .stepbtn{flex-basis:37px;height:39px}
+ .ratesGrid .stepper input{font-size:16px;padding:8px 6px}
+ .setupDialog{max-height:88dvh;padding:18px;overscroll-behavior:contain}
+}
+@media(max-width:360px){
+ .homeBrand h1{font-size:23px}
+ .scoreTopActions .headbtn{padding:8px 7px;font-size:10px}
+ .roomStatus{font-size:9px}
+ .newNameGrid{grid-template-columns:1fr}
+ .ratesGrid .stepbtn{flex-basis:26px}
+ .ratesGrid .stepper{gap:2px}
+}
 </style>
 </head>
 <body>
-<section class="wrap welcome" id="welcomeScreen" aria-label="Choose session">
-  <div class="welcomeHero"><div class="ball">15</div><div class="eyebrow">NUMBER BALL · LIVE SCOREKEEPER</div><h1>Your table. One scoreboard.</h1><p>Start a new session or join an existing table with its unique room code. Scores stay in sync across everyone's phones.</p></div>
+<section class="wrap sessionsScreen" id="sessionsScreen" aria-label="Number Ball home">
+  <div class="homeBrand"><div class="ball" aria-hidden="true">15</div><div><div class="eyebrow">LIVE SCOREKEEPER</div><h1>NUMBER BALL</h1><p class="muted">Your table. Your scoreboard.</p></div></div>
   <p id="welcomeSetup" class="welcomeNotice" hidden></p>
-  <div class="joinChoices">
-    <section class="joinCard"><div class="joinIcon">✦</div><h2>New session</h2><p>Set up a fresh scoreboard. We'll generate a unique 6-character code to share with your group.</p><form id="createForm" class="joinForm"><label for="newPlayerCount">Players</label><select id="newPlayerCount"><option value="2">2 players</option><option value="3">3 players</option><option value="4" selected>4 players</option></select><button class="primary" id="createBtn" type="submit">Create session →</button></form></section>
-    <section class="joinCard"><div class="joinIcon">⌁</div><h2>Continue / join</h2><p>Joining from another phone? Enter the session code. Returning later? Use your saved room code.</p><form class="joinForm" id="joinForm"><label for="joinCode">Room code</label><input id="joinCode" type="text" maxlength="8" minlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="6-CHAR CODE" required><button class="primary" type="submit" id="joinBtn">Join session →</button></form><button class="secondary" id="recentBtn" type="button" hidden>Continue last session</button><button class="secondary" id="browseBtn" type="button">☷ Browse my sessions</button></section>
-  </div>
-  <div class="welcomeSpinner" id="welcomeBusy" role="status"></div>
-  <p class="welcomeNote">No account needed for players. <button id="demoBtn" type="button">Try an offline demo</button><span id="demoHint"> · Connect Firebase for live sessions.</span></p>
-</section>
-<section class="wrap sessionsScreen" id="sessionsScreen" aria-label="My sessions" hidden>
-  <div class="sessionPageHead"><div><div class="eyebrow">NUMBER BALL · SESSION LIBRARY</div><h1>My sessions</h1><p class="muted">Rooms opened on this device. Tap a room to continue.</p></div><button type="button" class="secondary" id="sessionBackBtn">← Back</button></div>
-  <div class="libraryActions"><button class="primary" type="button" id="sessionNewBtn">＋ New session</button><button class="secondary" type="button" id="sessionJoinBtn">Join by code</button></div>
-  <label class="field" for="sessionSearch">Find a room</label>
-  <input id="sessionSearch" type="search" placeholder="Search player name or room code" autocomplete="off">
-  <p class="small" id="sessionListStatus" role="status"></p>
+  <div class="libraryActions"><button class="primary" type="button" id="sessionNewBtn">＋ New session</button><button class="secondary" type="button" id="sessionJoinBtn">↗ Join by code</button></div>
+  <div class="listHeading"><h2>Recent sessions</h2><span class="small" id="sessionListStatus" role="status"></span></div>
+  <div class="searchWrap"><input id="sessionSearch" type="search" aria-label="Search sessions" placeholder="Search player name or room code" autocomplete="off"></div>
   <div class="sessionsList" id="sessionsList"></div>
-  <p class="libraryPrivacy">Only rooms you've previously created or joined on this browser are listed. This isn't a public directory; you can join another room using its code.</p>
+  <p class="libraryPrivacy">Saved on this device only. Joining a room once adds it here; forgetting a room does not delete its scoreboard.</p>
 </section>
 <div class="wrap" id="appShell" hidden>
-<header class="header"><div class="identity"><div class="ball">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.7.1</div><h1>NUMBER BALL</h1><p class="muted">Session tracker</p></div></div><div class="headbuttons"><button class="headbtn" id="settingsBtn">⚙ Session</button><button class="headbtn highlight" id="settlementBtn">▤ Settlement</button></div></header>
-<div class="roomStrip"><div class="roomInfo"><button id="roomCode" class="roomCode" type="button" title="Copy room code. Existing rooms keep their original code; new rooms use 6 characters.">DEMO</button><span class="roomStatus" id="connectionStatus" role="status">Not connected</span></div><div class="roomActions"><button class="share" id="shareBtn" type="button">↗ Share room</button><button id="leaveBtn" type="button">☷ Sessions</button></div></div>
-<div class="stats"><div class="stat"><span>Game</span><b id="gameNo">01</b></div><div class="stat"><span>Bonus rate</span><b id="bonusRateStat">5</b></div><div class="stat"><span>Game rate</span><b id="gameRateStat">10</b></div><div class="stat foul"><span>Foul pool</span><b id="poolStat">0</b></div></div>
+<div class="scoreTopbar"><button type="button" class="backHome" id="leaveBtn">← Sessions</button><div class="scoreTopActions"><button type="button" class="headbtn iconSettings" id="settingsBtn" aria-label="Session settings">⚙ Settings</button><button type="button" class="headbtn highlight" id="settlementBtn">▤ Settlement</button></div></div>
+<header class="header slimHeader"><div class="identity"><div class="ball">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.8.1</div><h1>NUMBER BALL</h1></div></div></header>
+<div class="roomLine"><div class="roomInfo"><button id="roomCode" class="roomCode" type="button" title="Tap to copy room code">—</button><span class="roomStatus" id="connectionStatus" role="status">Connecting…</span></div><button class="shareIcon" id="shareBtn" type="button" title="Share room link" aria-label="Share room link">↗ Share</button></div>
+<div class="miniStats"><div class="miniStat"><span>Game</span><strong id="gameNo">01</strong></div><div class="miniStat"><span>Foul pool</span><strong class="poolText" id="poolStat">0</strong></div></div>
 <div class="sectionhead"><h2>Players</h2><span class="small">Tap to select</span></div>
 <section class="players" id="players" aria-label="Choose player"></section>
 <section class="main"><div class="stack">
@@ -192,9 +279,25 @@ body{background:#101318;color:var(--text)}
 <div class="toolbar"><button class="secondary" id="adjustBtn">↔ Adjust</button><button class="secondary" id="undoBtn">↶ Undo</button></div></section>
 
 </div><div class="stack"><section class="panel"><div class="panelhead"><div><h2>Activity</h2><p class="muted">Latest results</p></div></div><div id="history"></div></section></div></section>
-<div class="footer"><button class="textbtn" id="resetBtn">Reset session</button><span class="small" id="footerStatus">LIVE ROOM · Shared scoreboard</span></div>
+
 </div>
 <div id="toast" class="toast" aria-live="polite"></div>
+<dialog id="createSessionDialog" class="setupDialog"><form id="createForm" novalidate>
+  <div class="modalhead"><div><div class="eyebrow">NEW SESSION</div><h2>Set up your table</h2></div><button type="button" class="close" data-close="createSessionDialog" aria-label="Close">✕</button></div>
+  <p class="muted">Fill in the players and all rates before the room is created. You can edit them later in Settings.</p>
+  <label class="field" for="newPlayerCount">Players</label><select id="newPlayerCount" required><option value="2">2 players</option><option value="3">3 players</option><option value="4" selected>4 players</option></select>
+  <div id="newNameFields" class="newNameGrid"></div>
+  <div class="formSection"><div class="formSectionTitle">Session rates <span class="small">Whole numbers only</span></div><div class="ratesGrid">
+  <div><label class="field" for="newBonusRate">Bonus</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="newBonusRate" data-step="-1">−</button><input id="newBonusRate" type="number" inputmode="numeric" min="0" max="10000" step="1" value="5" required><button class="stepbtn" type="button" data-step-target="newBonusRate" data-step="1">+</button></div></div>
+  <div><label class="field" for="newGameRate">Game</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="newGameRate" data-step="-1">−</button><input id="newGameRate" type="number" inputmode="numeric" min="0" max="10000" step="1" value="10" required><button class="stepbtn" type="button" data-step-target="newGameRate" data-step="1">+</button></div></div>
+  <div><label class="field" for="newFoulRate">Foul</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="newFoulRate" data-step="-1">−</button><input id="newFoulRate" type="number" inputmode="numeric" min="0" max="10000" step="1" value="1" required><button class="stepbtn" type="button" data-step-target="newFoulRate" data-step="1">+</button></div></div>
+  </div></div>
+  <p class="formError" id="createError" role="alert" hidden></p><div class="modalbtns"><button class="secondary" type="button" data-close="createSessionDialog">Cancel</button><button class="primary" id="createBtn" type="submit">Create room</button></div>
+</form></dialog>
+<dialog id="joinSessionDialog" class="joinDialog"><form id="joinForm" novalidate><div class="modalhead"><div><div class="eyebrow">EXISTING SESSION</div><h2>Join a table</h2></div><button type="button" class="close" data-close="joinSessionDialog" aria-label="Close">✕</button></div>
+<p class="muted">Enter a six-character room code. Older eight-character codes still work.</p><label class="field" for="joinCode">Room code</label><input id="joinCode" type="text" maxlength="8" minlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC123" required>
+<p class="formError" id="joinError" role="alert" hidden></p><div class="modalbtns"><button class="secondary" type="button" data-close="joinSessionDialog">Cancel</button><button class="primary" id="joinBtn" type="submit">Join room</button></div></form></dialog>
+
 
 <dialog id="transferDialog"><form id="transferForm"><div class="modalhead"><h2 id="transferTitle">Bonus</h2><button type="button" class="close" data-close="transferDialog" aria-label="Close">✕</button></div><p class="muted" id="transferExplain">Select who covers this result.</p>
 <div class="totalband"><div><b id="receiverLabel">Player 1</b><small id="totalMath">5 × 3 others</small></div><b id="transferTotal">+15</b></div>
@@ -203,15 +306,15 @@ body{background:#101318;color:var(--text)}
 <div class="modalbtns"><button class="secondary" type="button" data-close="transferDialog">Cancel</button><button class="primary" type="submit" id="transferSubmit">Record bonus</button></div></form></dialog>
 <dialog id="foulDialog"><form id="foulForm"><div class="modalhead"><h2>Record foul</h2><button type="button" class="close" data-close="foulDialog" aria-label="Close">✕</button></div><p class="muted" id="foulExplain"></p>
 <label class="field" for="foulQty">Number of fouls</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="foulQty" data-step="-1">−</button><input id="foulQty" type="number" inputmode="numeric" min="1" max="50" step="1" value="1" required><button class="stepbtn" type="button" data-step-target="foulQty" data-step="1">+</button></div><div class="notice" id="foulPreview"></div><div class="modalbtns"><button class="secondary" type="button" data-close="foulDialog">Cancel</button><button class="primary" type="submit">Record foul</button></div></form></dialog>
-<dialog id="settingsDialog"><form id="settingsForm"><div class="modalhead"><h2>Edit session</h2><button type="button" class="close" data-close="settingsDialog" aria-label="Close">✕</button></div><label class="field" for="playerCount">Number of players</label><select id="playerCount"><option value="2">2 players</option><option value="3">3 players</option><option value="4">4 players</option></select>
+<dialog id="settingsDialog"><form id="settingsForm"><div class="modalhead"><h2>Session settings</h2><button type="button" class="close" data-close="settingsDialog" aria-label="Close">✕</button></div><label class="field" for="playerCount">Number of players</label><select id="playerCount"><option value="2">2 players</option><option value="3">3 players</option><option value="4">4 players</option></select>
 <div class="two"><div><label class="field" for="bonusRate">Bonus rate</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="bonusRate" data-step="-1">−</button><input id="bonusRate" type="number" inputmode="numeric" min="0" max="10000" step="1" required><button class="stepbtn" type="button" data-step-target="bonusRate" data-step="1">+</button></div></div><div><label class="field" for="gameRate">Game rate</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="gameRate" data-step="-1">−</button><input id="gameRate" type="number" inputmode="numeric" min="0" max="10000" step="1" required><button class="stepbtn" type="button" data-step-target="gameRate" data-step="1">+</button></div></div></div>
 <label class="field" for="foulRate">Foul rate</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="foulRate" data-step="-1">−</button><input id="foulRate" type="number" inputmode="numeric" min="0" max="10000" step="1" required><button class="stepbtn" type="button" data-step-target="foulRate" data-step="1">+</button></div>
-<div id="nameFields"></div><div class="notice">Whole numbers only. Changing the player count resets results after confirmation. Editing rates won't change past results.</div><div class="modalbtns"><button class="secondary" type="button" data-close="settingsDialog">Cancel</button><button class="primary" type="submit">Save session</button></div></form></dialog>
+<div id="nameFields"></div><div class="notice">Whole numbers only. Changing the player count resets results after confirmation. Editing rates won't change past results.</div><div class="modalbtns"><button class="secondary" type="button" data-close="settingsDialog">Cancel</button><button class="primary" type="submit">Save settings</button></div></form><div class="settingsDanger"><span class="small">Reset results for this room</span><button type="button" id="resetBtn" class="dangerText">Reset session</button></div></dialog>
 <dialog id="manualDialog"><form id="manualForm"><div class="modalhead"><h2>Adjustment</h2><button type="button" class="close" data-close="manualDialog" aria-label="Close">✕</button></div><div class="two"><div><label class="field" for="manualFrom">From</label><select id="manualFrom"></select></div><div><label class="field" for="manualTo">To</label><select id="manualTo"></select></div></div><label class="field" for="manualAmount">Value</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="manualAmount" data-step="-1">−</button><input id="manualAmount" type="number" inputmode="numeric" min="1" max="10000" step="1" required value="5"><button class="stepbtn" type="button" data-step-target="manualAmount" data-step="1">+</button></div><label class="field" for="manualReason">Note (optional)</label><input id="manualReason" maxlength="70" placeholder="Optional"><div class="modalbtns"><button class="secondary" type="button" data-close="manualDialog">Cancel</button><button class="primary" type="submit">Record adjustment</button></div></form></dialog>
 <dialog id="confirmDialog"><div class="modalhead"><h2 id="confirmTitle">Confirm</h2><button type="button" class="close" data-close="confirmDialog">✕</button></div><p class="notice" id="confirmText"></p><div class="modalbtns"><button class="secondary" type="button" data-close="confirmDialog">Cancel</button><button class="primary" type="button" id="confirmYes">Confirm</button></div></dialog>
 <dialog id="settlementDialog"><div class="modalhead"><h2>Session settlement</h2><button type="button" class="close" data-close="settlementDialog" aria-label="Close">✕</button></div><p class="settlelead">This is the private breakdown. Close to return to the clean scoreboard.</p><div class="settlestats"><div class="settlebox"><span>Game & bonus movement</span><strong id="settleMovement">$0</strong></div><div class="settlebox"><span>Reserved for table fees</span><strong id="settlePool">$0</strong></div></div><section class="settlesection"><h3>Who pays whom</h3><div id="settleLines"></div></section><section class="settlesection"><h3>Foul pool · Table fees</h3><div id="settleFouls"></div></section><div class="notice">Game and bonus balances are netted between players. Foul contributions are separate and reserved for table fees, not paid to a player.</div><div class="settletools"><button class="secondary" type="button" id="copyBtn">Copy settlement</button><button class="secondary" type="button" id="exportBtn">Export CSV</button></div><div class="modalbtns"><button class="primary" type="button" data-close="settlementDialog">Done</button></div></dialog>
 
 <script src="./firebase-config.js"></script>
-<script src="./app.js?v=0.7.1" defer></script>
+<script src="./app.js?v=0.8.0" defer></script>
 </body>
 </html>
