@@ -268,7 +268,7 @@ body{background:#101318}
 </section>
 <div class="wrap" id="appShell" hidden>
 <div class="scoreTopbar"><button type="button" class="backHome" id="leaveBtn">← Sessions</button><div class="scoreTopActions"><button type="button" class="headbtn iconSettings" id="settingsBtn" aria-label="Session settings">⚙ Settings</button><button type="button" class="headbtn highlight" id="settlementBtn">▤ Settlement</button></div></div>
-<header class="header slimHeader"><div class="identity"><div class="ball">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.8.1</div><h1>NUMBER BALL</h1></div></div></header>
+<header class="header slimHeader"><div class="identity"><div class="ball">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.8.2</div><h1>NUMBER BALL</h1></div></div></header>
 <div class="roomLine"><div class="roomInfo"><button id="roomCode" class="roomCode" type="button" title="Tap to copy room code">—</button><span class="roomStatus" id="connectionStatus" role="status">Connecting…</span></div><button class="shareIcon" id="shareBtn" type="button" title="Share room link" aria-label="Share room link">↗ Share</button></div>
 <div class="miniStats"><div class="miniStat"><span>Game</span><strong id="gameNo">01</strong></div><div class="miniStat"><span>Foul pool</span><strong class="poolText" id="poolStat">0</strong></div></div>
 <div class="sectionhead"><h2>Players</h2><span class="small">Tap to select</span></div>
@@ -315,6 +315,6 @@ body{background:#101318}
 <dialog id="settlementDialog"><div class="modalhead"><h2>Session settlement</h2><button type="button" class="close" data-close="settlementDialog" aria-label="Close">✕</button></div><p class="settlelead">This is the private breakdown. Close to return to the clean scoreboard.</p><div class="settlestats"><div class="settlebox"><span>Game & bonus movement</span><strong id="settleMovement">$0</strong></div><div class="settlebox"><span>Reserved for table fees</span><strong id="settlePool">$0</strong></div></div><section class="settlesection"><h3>Who pays whom</h3><div id="settleLines"></div></section><section class="settlesection"><h3>Foul pool · Table fees</h3><div id="settleFouls"></div></section><div class="notice">Game and bonus balances are netted between players. Foul contributions are separate and reserved for table fees, not paid to a player.</div><div class="settletools"><button class="secondary" type="button" id="copyBtn">Copy settlement</button><button class="secondary" type="button" id="exportBtn">Export CSV</button></div><div class="modalbtns"><button class="primary" type="button" data-close="settlementDialog">Done</button></div></dialog>
 
 <script src="./firebase-config.js"></script>
-<script src="./app.js?v=0.8.0" defer></script>
+<script src="./app.js?v=0.8.2" defer></script>
 </body>
 </html>

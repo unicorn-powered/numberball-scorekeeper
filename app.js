@@ -14,40 +14,76 @@ function generateRoomCode(){const bytes=new Uint32Array(6);crypto.getRandomValue
 function normalise(raw){const v=raw||{}, players=Array.isArray(v.players)?v.players:Object.values(v.players||{}),events=Array.isArray(v.events)?v.events:Object.values(v.events||{}),rates=v.rates||{};
  return {players:players.length>=2&&players.length<=4?players:defaults().players,rates:{bonus:Number(rates.bonus??5),game:Number(rates.game??10),foul:Number(rates.foul??1)},events,revision:Number(v.revision||0),selected:state.selected};}
 function roomPayload(draft){return {players:draft.players,rates:draft.rates,events:draft.events,revision:draft.revision};}
-function setBusy(busy,text=''){['createBtn','joinBtn','recentBtn'].forEach(id=>$(id).disabled=busy);$('welcomeBusy').textContent=text;}
-function showWelcome(){if(session.unsubscribe){session.unsubscribe();session.unsubscribe=null}if(session.unsubConnection){session.unsubConnection();session.unsubConnection=null}session.mode='none';session.code=null;session.connected=false;session.dataReady=false;
- $('sessionsScreen').hidden=true;$('appShell').hidden=true;$('welcomeScreen').hidden=false;window.scrollTo(0,0);$('joinCode').value=normalizeRoomCode(new URLSearchParams(location.search).get('room')||localStorage.getItem(LAST_ROOM_KEY)||'');
- const cleaned=new URL(location.href);cleaned.searchParams.delete('room');if(location.protocol==='https:'||location.protocol==='http:')history.replaceState(null,'',cleaned.pathname+cleaned.search+cleaned.hash);
- const recent=localStorage.getItem(LAST_ROOM_KEY);$('recentBtn').hidden=!recent;if(recent)$('recentBtn').textContent='Continue '+recent;
- setBusy(false);}
-function startRoom(mode,code,initialState){session.mode=mode;session.code=code;session.connected=(mode==='demo');session.dataReady=(mode==='demo');state=normalise(initialState);state.selected=(mode==='live'?localStorage.getItem('sg_nb_selection_'+code):initialState?.selected)||state.players[0].id;
- $('welcomeScreen').hidden=true;$('sessionsScreen').hidden=true;$('appShell').hidden=false;window.scrollTo(0,0);
- $('roomCode').textContent=code||'DEMO';$('shareBtn').hidden=mode!=='live';$('footerStatus').textContent=mode==='live'?'LIVE ROOM · Shared scoreboard':'OFFLINE DEMO · This device only';
- setConnectionStatus(mode==='live'?'connecting':'demo');
- if(mode==='live'){localStorage.setItem(LAST_ROOM_KEY,code);rememberRoom(code,state,true);const url=new URL(location.href);url.searchParams.set('room',code);(location.protocol==='https:'||location.protocol==='http:')&&history.replaceState(null,'',url.pathname+url.search+url.hash)}
- render();}
+function setBusy(busy,text=''){
+ ['createBtn','joinBtn'].forEach(id=>{const el=$(id);if(el)el.disabled=busy});
+ if(text){const err=$('createError');if(!$('createSessionDialog').open){$('joinError').textContent=text;$('joinError').hidden=false}else{err.textContent=text;err.hidden=false}}
+}
+function showWelcome(){showSessions()}
+function startRoom(mode,code,initialState){
+ session.mode=mode;session.code=code;session.connected=false;session.dataReady=false;
+ state=normalise(initialState);
+ state.selected=localStorage.getItem('sg_nb_selection_'+code)||state.players[0].id;
+ $('sessionsScreen').hidden=true;$('appShell').hidden=false;window.scrollTo(0,0);
+ $('roomCode').textContent=code;$('shareBtn').hidden=false;setConnectionStatus('connecting');
+ localStorage.setItem(LAST_ROOM_KEY,code);rememberRoom(code,state,true);
+ const url=new URL(location.href);url.searchParams.set('room',code);
+ if(location.protocol==='https:'||location.protocol==='http:')history.replaceState(null,'',url.pathname+url.search+url.hash);
+ render();
+}
+function populateNewNames(){
+ const count=Number($('newPlayerCount').value);
+ const prior=Array.from($('newNameFields').querySelectorAll('input')).map(n=>n.value);
+ $('newNameFields').innerHTML=Array.from({length:count},(_,i)=>`<div><label class="field" for="newName_${i}">Player ${i+1} name</label><input id="newName_${i}" name="newName_${i}" maxlength="28" autocomplete="off" placeholder="Enter player name" value="${escapeHtml(prior[i]||'')}" required></div>`).join('');
+}
+function openCreateDialog(){
+ $('newPlayerCount').value='4';$('newNameFields').innerHTML='';populateNewNames();
+ $('newBonusRate').value='5';$('newGameRate').value='10';$('newFoulRate').value='1';
+ $('createError').hidden=true;$('createSessionDialog').showModal();
+}
+function openJoinDialog(code=''){
+ $('joinCode').value=normalizeRoomCode(code);$('joinError').hidden=true;$('joinSessionDialog').showModal();
+}
 function setupLanding(){
- const urlRoom=normalizeRoomCode(new URLSearchParams(location.search).get('room'));
- const last=normalizeRoomCode(localStorage.getItem(LAST_ROOM_KEY));
- $('joinCode').value=urlRoom||last;
- $('recentBtn').hidden=!last;if(last)$('recentBtn').textContent='Continue '+last;
- if(!configured){$('welcomeSetup').hidden=false;$('welcomeSetup').textContent='Live session setup needed: add your Firebase web configuration to firebase-config.js and deploy the site. You can still test the offline demo below.';}
- $('joinCode').addEventListener('input',e=>{const v=normalizeRoomCode(e.target.value);if(e.target.value!==v)e.target.value=v;});
- $('createForm').onsubmit=async e=>{e.preventDefault();try{setBusy(true,'Creating room…');await createLiveRoom(Number($('newPlayerCount').value));}catch(err){notify('Could not create room');$('welcomeBusy').textContent=firebaseError(err);console.warn(err)}finally{setBusy(false)}};
- $('joinForm').onsubmit=async e=>{e.preventDefault();await joinFromInput($('joinCode').value)};
- $('recentBtn').onclick=()=>joinFromInput(localStorage.getItem(LAST_ROOM_KEY));
- $('browseBtn').onclick=showSessions;
- $('sessionBackBtn').onclick=()=>{if(session.mode!=='none'){$('sessionsScreen').hidden=true;$('appShell').hidden=false;window.scrollTo(0,0)}else showWelcome()};
- $('sessionNewBtn').onclick=showWelcome;
- $('sessionJoinBtn').onclick=()=>{showWelcome();$('joinCode').focus()};
- $('sessionSearch').oninput=renderSavedRooms;
- $('sessionsList').onclick=async e=>{const forget=e.target.closest('[data-forget-room]');if(forget){forgetSavedRoom(forget.dataset.forgetRoom);renderSavedRooms();return;}const button=e.target.closest('[data-open-room]');if(button)await openSavedRoom(button.dataset.openRoom)};
- $('demoBtn').onclick=()=>{let stored=null;try{stored=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}if(!stored||!Array.isArray(stored.players))stored=defaults(Number($('newPlayerCount').value));startRoom('demo',null,stored)};
+ $('sessionNewBtn').onclick=openCreateDialog;
+ $('sessionJoinBtn').onclick=()=>openJoinDialog();
  $('leaveBtn').onclick=showSessions;
- $('roomCode').onclick=()=>copyText(session.code||'',session.code?'Room code copied':'This is a demo room');
- $('shareBtn').onclick=async()=>{if(session.mode!=='live')return;const url=new URL(location.href);url.searchParams.set('room',session.code);const text=`Join Number Ball room ${session.code}`;
- try{if(navigator.share){await navigator.share({title:'Number Ball',text,url:url.href});return}}catch(e){if(e.name==='AbortError')return}
- await copyText(url.href,'Room link copied');};
+ $('sessionSearch').oninput=renderSavedRooms;
+ $('newPlayerCount').onchange=()=>{populateNewNames();$('createError').hidden=true};
+ $('createForm').addEventListener('input',()=>{$('createError').hidden=true});
+ $('sessionsList').onclick=async e=>{
+  const forget=e.target.closest('[data-forget-room]');
+  if(forget){forgetSavedRoom(forget.dataset.forgetRoom);renderSavedRooms();return;}
+  const b=e.target.closest('[data-open-room]');if(b)await openSavedRoom(b.dataset.openRoom);
+ };
+ $('createForm').onsubmit=async e=>{
+  e.preventDefault();$('createError').hidden=true;
+  const count=Number($('newPlayerCount').value);
+  const names=Array.from({length:count},(_,i)=>$('newName_'+i).value.trim());
+  const rates={bonus:Number($('newBonusRate').value),game:Number($('newGameRate').value),foul:Number($('newFoulRate').value)};
+  const rawRates=['newBonusRate','newGameRate','newFoulRate'].map(id=>$(id).value.trim());
+  let error='';
+  if(!validInt(count,2,4))error='Choose 2, 3 or 4 players.';
+  else if(names.some(n=>!n))error='Enter a name for every player.';
+  else if(new Set(names.map(n=>n.toLowerCase())).size!==count)error='Player names must be different.';
+  else if(rawRates.some(s=>s==='')||Object.values(rates).some(n=>!validInt(n)))error='Enter valid whole-number rates for Bonus, Game and Foul.';
+  if(error){$('createError').textContent=error;$('createError').hidden=false;return}
+  const draft=defaults(count);draft.players=draft.players.map((p,i)=>({...p,name:names[i]}));draft.rates=rates;
+  try{setBusy(true);await createLiveRoom(draft);$('createSessionDialog').close();notify('Room created');}
+  catch(err){$('createError').textContent=firebaseError(err);$('createError').hidden=false;console.warn(err)}
+  finally{setBusy(false)}
+ };
+ $('joinCode').addEventListener('input',e=>{const v=normalizeRoomCode(e.target.value);if(e.target.value!==v)e.target.value=v});
+ $('joinForm').onsubmit=async e=>{e.preventDefault();await joinFromInput($('joinCode').value)};
+ $('roomCode').onclick=()=>copyText(session.code||'','Room code copied');
+ $('shareBtn').onclick=async()=>{if(session.mode!=='live')return;
+  const url=new URL(location.href);url.searchParams.set('room',session.code);
+  try{if(navigator.share){await navigator.share({title:'Number Ball',text:'Join room '+session.code,url:url.href});return}}catch(e){if(e.name==='AbortError')return}
+  await copyText(url.href,'Room link copied');
+ };
+ if(!configured){$('welcomeSetup').hidden=false;$('welcomeSetup').textContent='Firebase is not configured. Add your Firebase web settings before creating or joining a room.'}
+ const linked=normalizeRoomCode(new URLSearchParams(location.search).get('room'));
+ showSessions();
+ if(validRoomCode(linked))openJoinDialog(linked);
 }
 async function copyText(text,message){if(!text){notify(message);return}try{await navigator.clipboard.writeText(text);notify(message)}catch(e){const inp=document.createElement('textarea');inp.value=text;inp.style.position='fixed';inp.style.top='-9999px';document.body.append(inp);inp.select();const worked=document.execCommand('copy');inp.remove();notify(worked?message:'Copy unavailable. Code: '+text)}}
 function firebaseError(e){const msg=String(e?.message||e||'');if(!configured)return 'Firebase not configured. Edit firebase-config.js to enable live rooms.';if(/auth\/operation-not-allowed/i.test(msg))return 'Enable Anonymous in Firebase Authentication → Sign-in methods.';if(/permission.denied|PERMISSION_DENIED/i.test(msg))return 'Permission denied. Check database.rules.json was published in Firebase.';if(/network|offline|failed.to.fetch/i.test(msg))return 'Connection failed. Check your network and database URL.';return msg.slice(0,250)}
@@ -60,13 +96,19 @@ async function ensureFirebase(){if(!configured)throw Error('Firebase not configu
  await cloud.auth.authStateReady();if(!cloud.auth.currentUser)await cloud.authAPI.signInAnonymously(cloud.auth);
  session.uid=cloud.auth.currentUser.uid;return cloud;
 }
-async function createLiveRoom(count){if(count<2||count>4)throw Error('Choose 2–4 players');const fb=await ensureFirebase();
- for(let tries=0;tries<5;tries++){const code=generateRoomCode(),ref=fb.dbAPI.ref(fb.db,'rooms/'+code),data=defaults(count);
+async function createLiveRoom(data){if(!Array.isArray(data.players)||data.players.length<2||data.players.length>4)throw Error('Choose 2–4 players');const fb=await ensureFirebase();
+ for(let tries=0;tries<5;tries++){const code=generateRoomCode(),ref=fb.dbAPI.ref(fb.db,'rooms/'+code);
  try{await fb.dbAPI.set(ref,{createdBy:session.uid,createdAt:Date.now(),data:roomPayload(data)});await joinLiveRoom(code,data);return;}catch(e){if(/permission.denied/i.test(String(e?.message||e))&&tries<4)continue;throw e;}}
  throw Error('Could not generate a unique room. Try again.');}
-async function joinFromInput(raw){const code=normalizeRoomCode(raw);if(!validRoomCode(code)){notify('Enter a 6-character code (or an older 8-character code)');return;}
- try{setBusy(true,'Joining '+code+'…');const fb=await ensureFirebase();const snap=await fb.dbAPI.get(fb.dbAPI.ref(fb.db,'rooms/'+code+'/data'));if(!snap.exists())throw Error('Room not found. Check the code.');await joinLiveRoom(code,snap.val());}
- catch(e){$('welcomeBusy').textContent=firebaseError(e);notify('Could not join room');console.warn(e)}finally{setBusy(false)}}
+async function joinFromInput(raw){
+ const code=normalizeRoomCode(raw);
+ if(!validRoomCode(code)){$('joinError').textContent='Enter a valid six-character code (or older eight-character code).';$('joinError').hidden=false;if(!$('joinSessionDialog').open)openJoinDialog(raw);return;}
+ try{setBusy(true);const fb=await ensureFirebase();const snap=await fb.dbAPI.get(fb.dbAPI.ref(fb.db,'rooms/'+code+'/data'));
+  if(!snap.exists())throw Error('Room not found. Check the code.');
+  await joinLiveRoom(code,snap.val());if($('joinSessionDialog').open)$('joinSessionDialog').close();
+ }catch(e){if(!$('joinSessionDialog').open)openJoinDialog(code);$('joinError').textContent=firebaseError(e);$('joinError').hidden=false;notify('Could not join room');console.warn(e)}
+ finally{setBusy(false)}
+}
 async function joinLiveRoom(code,initial){const fb=await ensureFirebase();if(session.unsubscribe){session.unsubscribe();session.unsubscribe=null}if(session.unsubConnection){session.unsubConnection();session.unsubConnection=null}
  startRoom('live',code,initial);
  session.unsubscribe=fb.dbAPI.onValue(fb.dbAPI.ref(fb.db,'rooms/'+code+'/data'),snap=>{
@@ -78,10 +120,9 @@ async function joinLiveRoom(code,initial){const fb=await ensureFirebase();if(ses
  session.unsubConnection=fb.dbAPI.onValue(fb.dbAPI.ref(fb.db,'.info/connected'),snap=>{
  if(session.mode!=='live'||session.code!==code)return;session.connected=!!snap.val();setConnectionStatus();
  });}
-async function commit(mutator){if(!['demo','live'].includes(session.mode)||activeWrite)return false;activeWrite=true;
+async function commit(mutator){if(session.mode!=='live'||activeWrite)return false;activeWrite=true;
  try{
- if(session.mode==='demo'){const draft=normalise(state);draft.selected=state.selected;if(mutator(draft)===false)return false;draft.revision++;state=draft;save();render();return true;}
- const fb=await ensureFirebase();const path=fb.dbAPI.ref(fb.db,'rooms/'+session.code+'/data');let rejected=false;
+  const fb=await ensureFirebase();const path=fb.dbAPI.ref(fb.db,'rooms/'+session.code+'/data');let rejected=false;
  const result=await fb.dbAPI.runTransaction(path,raw=>{
  if(!raw)return;
  const draft=normalise(raw);if(mutator(draft)===false){rejected=true;return;}
@@ -98,7 +139,6 @@ async function commit(mutator){if(!['demo','live'].includes(session.mode)||activ
 function setConnectionStatus(override=''){
  const el=$('connectionStatus');if(!el)return;
  el.classList.remove('is-live','is-warning');
- if(override==='demo'){el.textContent='Offline demo';return;}
  if(override==='connecting'){el.textContent='○ Connecting…';return;}
  if(override==='missing'){el.textContent='○ Room unavailable';el.classList.add('is-warning');return;}
  if(override==='error'){el.textContent='○ Sync error';el.classList.add('is-warning');return;}
@@ -140,8 +180,10 @@ function renderSavedRooms(){
  }).join(''):`<div class="empty">${q?'No matching sessions.':'No saved sessions yet. Create one or join with a room code.'}</div>`;
 }
 function showSessions(){
- $('welcomeScreen').hidden=true;$('appShell').hidden=true;$('sessionsScreen').hidden=false;window.scrollTo(0,0);
+ $('appShell').hidden=true;$('sessionsScreen').hidden=false;window.scrollTo(0,0);
  $('sessionSearch').value='';renderSavedRooms();refreshSavedRoomDetails();
+ const url=new URL(location.href);url.searchParams.delete('room');
+ if(location.protocol==='https:'||location.protocol==='http:')history.replaceState(null,'',url.pathname+url.search+url.hash);
 }
 async function openSavedRoom(code){
  if(session.mode==='live'&&session.code===code){$('sessionsScreen').hidden=true;$('appShell').hidden=false;window.scrollTo(0,0);return}
@@ -160,7 +202,6 @@ async function refreshSavedRoomDetails(){
  }catch(e){console.warn('Could not refresh session list',e)}
 }
 
-const KEY='sg_numberball_v05_demo';
 const LAST_ROOM_KEY='sg_numberball_v05_recent_room';
 const SAVED_ROOMS_KEY='sg_numberball_v071_saved_rooms';
 const $=id=>document.getElementById(id);
@@ -175,7 +216,7 @@ const name=id=>state.players.find(p=>p.id===id)?.name||'Unknown';
 const gameNo=()=>1+state.events.filter(e=>e.kind==='game').length;
 const validInt=(n,min=0,max=10000)=>Number.isSafeInteger(n)&&n>=min&&n<=max;
 const zero=()=>Object.fromEntries(state.players.map(p=>[p.id,0]));
-const save=()=>{if(session.mode==='demo'){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){console.warn(e)}}else if(session.mode==='live'&&session.code){try{localStorage.setItem('sg_nb_selection_'+session.code,state.selected)}catch(e){console.warn(e)}}};
+const save=()=>{if(session.mode==='live'&&session.code){try{localStorage.setItem('sg_nb_selection_'+session.code,state.selected)}catch(e){console.warn(e)}}};
 function notify(msg){let el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(notify.timeout);notify.timeout=setTimeout(()=>el.classList.remove('show'),2300)}
 function totals(){
  // Two independent ledgers: player scores (bonus/game/adjustments) and
@@ -209,7 +250,7 @@ function netTransfers(balances){
 async function record(event){event.time=new Date().toISOString();event.id=generateId();event.writer=session.uid||'offline';return commit(draft=>{if(!draft.players.some(p=>p.id===event.actor)||Object.keys(event.deltas||{}).length!==draft.players.length||!Object.keys(event.deltas||{}).every(id=>draft.players.some(p=>p.id===id)))return false;if(['bonus','game','foul'].includes(event.kind)&&draft.rates[event.kind]!==event.rate)return false;const item={...event,gameNo:1+draft.events.filter(e=>e.kind==='game').length};draft.events.push(item);});}
 function render(){
  if(!state.players.some(p=>p.id===state.selected))state.selected=state.players[0].id;
- const t=totals();$('gameNo').textContent=String(gameNo()).padStart(2,'0');$('bonusRateStat').textContent=fmt(state.rates.bonus);$('gameRateStat').textContent=fmt(state.rates.game);$('poolStat').textContent=fmt(t.pool);$('undoBtn').disabled=!state.events.length;$('selectedBadge').textContent=name(state.selected);
+ const t=totals();$('gameNo').textContent=String(gameNo()).padStart(2,'0');$('poolStat').textContent=fmt(t.pool);$('undoBtn').disabled=!state.events.length;$('selectedBadge').textContent=name(state.selected);
  $('players').innerHTML=state.players.map(p=>`<button type="button" class="player ${p.id===state.selected?'active':''}" data-player="${escapeHtml(p.id)}" aria-pressed="${p.id===state.selected}"><div class="phead"><span class="avatar">${escapeHtml(p.name[0]?.toUpperCase()||'P')}</span><span class="indicator">${p.id===state.selected?'● ACTIVE':'TAP TO SELECT'}</span></div><div class="pname">${escapeHtml(p.name)}</div><div class="pscores"><span class="pvalue ${t.gameBalances[p.id]>0?'plus':t.gameBalances[p.id]<0?'minus':''}">${signed(t.gameBalances[p.id])}</span><span class="pfoul" title="Separate foul-pool contribution">(${signed(t.foulBalances[p.id])})</span></div><div class="pfoot"><span>★ ${t.games[p.id]} games</span><span>! ${t.fouls[p.id]} fouls</span></div></button>`).join('');
  $('players').querySelectorAll('[data-player]').forEach(b=>b.onclick=()=>{state.selected=b.dataset.player;save();render()});
  
@@ -261,6 +302,6 @@ function showSettlement(){const t=totals(),transfers=netTransfers(t.gameBalances
 $('settlementBtn').onclick=showSettlement;
 $('copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(settlementSummary());notify('Settlement copied')}catch(e){notify('Clipboard unavailable; use CSV export')}};
 const csv=value=>'"'+String(value??'').replaceAll('"','""')+'"';
-$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(e.payerAmounts||{}).map(([id,v])=>`${name(id)}: ${v}`).join('; '):(e.payers||[]).map(name).join('; '),e.total??e.amount,e.quantity||0,e.poolDelta||0,e.reason||'']),[],['PLAYER','GAME + BONUS NET SGD','TABLE FEE CONTRIBUTION SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],-t.foulBalances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v071-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
+$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(e.payerAmounts||{}).map(([id,v])=>`${name(id)}: ${v}`).join('; '):(e.payers||[]).map(name).join('; '),e.total??e.amount,e.quantity||0,e.poolDelta||0,e.reason||'']),[],['PLAYER','GAME + BONUS NET SGD','TABLE FEE CONTRIBUTION SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],-t.foulBalances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v080-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 setupLanding();
