@@ -2,7 +2,7 @@
 
 // Room transport: no Firebase calls or external imports occur until a valid
 // Firebase config is supplied and a visitor chooses Create / Join.
-const session={mode:'none',code:null,uid:null,unsubscribe:null,unsubConnection:null,connected:false};
+const session={mode:'none',code:null,uid:null,unsubscribe:null,unsubConnection:null,connected:false,dataReady:false};
 const conf=window.NUMBERBALL_FIREBASE_CONFIG||{};
 const configured=['apiKey','authDomain','databaseURL','projectId','appId'].every(k=>typeof conf[k]==='string'&&conf[k].trim().length>0);
 let cloud=null, activeWrite=false;
@@ -15,16 +15,16 @@ function normalise(raw){const v=raw||{}, players=Array.isArray(v.players)?v.play
  return {players:players.length>=2&&players.length<=4?players:defaults().players,rates:{bonus:Number(rates.bonus??5),game:Number(rates.game??10),foul:Number(rates.foul??1)},events,revision:Number(v.revision||0),selected:state.selected};}
 function roomPayload(draft){return {players:draft.players,rates:draft.rates,events:draft.events,revision:draft.revision};}
 function setBusy(busy,text=''){['createBtn','joinBtn','recentBtn'].forEach(id=>$(id).disabled=busy);$('welcomeBusy').textContent=text;}
-function showWelcome(){if(session.unsubscribe){session.unsubscribe();session.unsubscribe=null}if(session.unsubConnection){session.unsubConnection();session.unsubConnection=null}session.mode='none';session.code=null;session.connected=false;
- $('appShell').hidden=true;$('welcomeScreen').hidden=false;window.scrollTo(0,0);$('joinCode').value=normalizeRoomCode(new URLSearchParams(location.search).get('room')||localStorage.getItem(LAST_ROOM_KEY)||'');
+function showWelcome(){if(session.unsubscribe){session.unsubscribe();session.unsubscribe=null}if(session.unsubConnection){session.unsubConnection();session.unsubConnection=null}session.mode='none';session.code=null;session.connected=false;session.dataReady=false;
+ $('sessionsScreen').hidden=true;$('appShell').hidden=true;$('welcomeScreen').hidden=false;window.scrollTo(0,0);$('joinCode').value=normalizeRoomCode(new URLSearchParams(location.search).get('room')||localStorage.getItem(LAST_ROOM_KEY)||'');
  const cleaned=new URL(location.href);cleaned.searchParams.delete('room');if(location.protocol==='https:'||location.protocol==='http:')history.replaceState(null,'',cleaned.pathname+cleaned.search+cleaned.hash);
  const recent=localStorage.getItem(LAST_ROOM_KEY);$('recentBtn').hidden=!recent;if(recent)$('recentBtn').textContent='Continue '+recent;
  setBusy(false);}
-function startRoom(mode,code,initialState){session.mode=mode;session.code=code;session.connected=(mode==='demo');state=normalise(initialState);state.selected=(mode==='live'?localStorage.getItem('sg_nb_selection_'+code):initialState?.selected)||state.players[0].id;
- $('welcomeScreen').hidden=true;$('appShell').hidden=false;window.scrollTo(0,0);
+function startRoom(mode,code,initialState){session.mode=mode;session.code=code;session.connected=(mode==='demo');session.dataReady=(mode==='demo');state=normalise(initialState);state.selected=(mode==='live'?localStorage.getItem('sg_nb_selection_'+code):initialState?.selected)||state.players[0].id;
+ $('welcomeScreen').hidden=true;$('sessionsScreen').hidden=true;$('appShell').hidden=false;window.scrollTo(0,0);
  $('roomCode').textContent=code||'DEMO';$('shareBtn').hidden=mode!=='live';$('footerStatus').textContent=mode==='live'?'LIVE ROOM · Shared scoreboard':'OFFLINE DEMO · This device only';
- $('connectionStatus').textContent=mode==='live'?'Connecting…':'Stored on this device only';
- if(mode==='live'){localStorage.setItem(LAST_ROOM_KEY,code);const url=new URL(location.href);url.searchParams.set('room',code);(location.protocol==='https:'||location.protocol==='http:')&&history.replaceState(null,'',url.pathname+url.search+url.hash)}
+ setConnectionStatus(mode==='live'?'connecting':'demo');
+ if(mode==='live'){localStorage.setItem(LAST_ROOM_KEY,code);rememberRoom(code,state,true);const url=new URL(location.href);url.searchParams.set('room',code);(location.protocol==='https:'||location.protocol==='http:')&&history.replaceState(null,'',url.pathname+url.search+url.hash)}
  render();}
 function setupLanding(){
  const urlRoom=normalizeRoomCode(new URLSearchParams(location.search).get('room'));
@@ -36,8 +36,14 @@ function setupLanding(){
  $('createForm').onsubmit=async e=>{e.preventDefault();try{setBusy(true,'Creating room…');await createLiveRoom(Number($('newPlayerCount').value));}catch(err){notify('Could not create room');$('welcomeBusy').textContent=firebaseError(err);console.warn(err)}finally{setBusy(false)}};
  $('joinForm').onsubmit=async e=>{e.preventDefault();await joinFromInput($('joinCode').value)};
  $('recentBtn').onclick=()=>joinFromInput(localStorage.getItem(LAST_ROOM_KEY));
+ $('browseBtn').onclick=showSessions;
+ $('sessionBackBtn').onclick=()=>{if(session.mode!=='none'){$('sessionsScreen').hidden=true;$('appShell').hidden=false;window.scrollTo(0,0)}else showWelcome()};
+ $('sessionNewBtn').onclick=showWelcome;
+ $('sessionJoinBtn').onclick=()=>{showWelcome();$('joinCode').focus()};
+ $('sessionSearch').oninput=renderSavedRooms;
+ $('sessionsList').onclick=async e=>{const forget=e.target.closest('[data-forget-room]');if(forget){forgetSavedRoom(forget.dataset.forgetRoom);renderSavedRooms();return;}const button=e.target.closest('[data-open-room]');if(button)await openSavedRoom(button.dataset.openRoom)};
  $('demoBtn').onclick=()=>{let stored=null;try{stored=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}if(!stored||!Array.isArray(stored.players))stored=defaults(Number($('newPlayerCount').value));startRoom('demo',null,stored)};
- $('leaveBtn').onclick=showWelcome;
+ $('leaveBtn').onclick=showSessions;
  $('roomCode').onclick=()=>copyText(session.code||'',session.code?'Room code copied':'This is a demo room');
  $('shareBtn').onclick=async()=>{if(session.mode!=='live')return;const url=new URL(location.href);url.searchParams.set('room',session.code);const text=`Join Number Ball room ${session.code}`;
  try{if(navigator.share){await navigator.share({title:'Number Ball',text,url:url.href});return}}catch(e){if(e.name==='AbortError')return}
@@ -65,11 +71,12 @@ async function joinLiveRoom(code,initial){const fb=await ensureFirebase();if(ses
  startRoom('live',code,initial);
  session.unsubscribe=fb.dbAPI.onValue(fb.dbAPI.ref(fb.db,'rooms/'+code+'/data'),snap=>{
  if(session.mode!=='live'||session.code!==code)return;
- if(!snap.exists()){$('connectionStatus').textContent='Room no longer available';return;}
+ if(!snap.exists()){session.dataReady=false;setConnectionStatus('missing');return;}
+ session.dataReady=true;setConnectionStatus();rememberRoom(code,snap.val(),false);
  const selection=state.selected;state=normalise(snap.val());state.selected=state.players.some(p=>p.id===selection)?selection:state.players[0].id;render();
- },err=>{$('connectionStatus').textContent='Sync error';notify('Sync error: '+firebaseError(err))});
+ },err=>{session.dataReady=false;setConnectionStatus('error');notify('Sync error: '+firebaseError(err))});
  session.unsubConnection=fb.dbAPI.onValue(fb.dbAPI.ref(fb.db,'.info/connected'),snap=>{
- if(session.mode!=='live'||session.code!==code)return;session.connected=!!snap.val();$('connectionStatus').textContent=session.connected?'● Live · Synced':'○ Reconnecting…';
+ if(session.mode!=='live'||session.code!==code)return;session.connected=!!snap.val();setConnectionStatus();
  });}
 async function commit(mutator){if(!['demo','live'].includes(session.mode)||activeWrite)return false;activeWrite=true;
  try{
@@ -85,8 +92,77 @@ async function commit(mutator){if(!['demo','live'].includes(session.mode)||activ
  finally{activeWrite=false;}
 }
 
+
+/* Private room library: only codes already used in this browser are indexed.
+ * Existing Firebase room data and rules remain unchanged. */
+function setConnectionStatus(override=''){
+ const el=$('connectionStatus');if(!el)return;
+ el.classList.remove('is-live','is-warning');
+ if(override==='demo'){el.textContent='Offline demo';return;}
+ if(override==='connecting'){el.textContent='○ Connecting…';return;}
+ if(override==='missing'){el.textContent='○ Room unavailable';el.classList.add('is-warning');return;}
+ if(override==='error'){el.textContent='○ Sync error';el.classList.add('is-warning');return;}
+ if(session.mode!=='live'||!session.connected){el.textContent='○ Reconnecting…';el.classList.add('is-warning');return;}
+ if(!session.dataReady){el.textContent='○ Connecting…';return;}
+ el.textContent='● Live · Synced';el.classList.add('is-live');
+}
+function savedRooms(){
+ let arr=[];try{const parsed=JSON.parse(localStorage.getItem(SAVED_ROOMS_KEY)||'[]');if(Array.isArray(parsed))arr=parsed;}catch(e){}
+ arr=arr.filter(item=>item&&validRoomCode(item.code)).map(item=>({code:item.code,opened:Number(item.opened)||0,players:Array.isArray(item.players)?item.players.slice(0,4).map(String):[],games:Number(item.games)||0,unavailable:!!item.unavailable}));
+ const legacy=normalizeRoomCode(localStorage.getItem(LAST_ROOM_KEY));if(validRoomCode(legacy)&&!arr.some(item=>item.code===legacy))arr.push({code:legacy,opened:0,players:[],games:0});
+ return Array.from(new Map(arr.map(item=>[item.code,item])).values()).sort((a,b)=>b.opened-a.opened);
+}
+function persistSavedRooms(rooms){try{localStorage.setItem(SAVED_ROOMS_KEY,JSON.stringify(rooms.slice(0,100)))}catch(e){console.warn('Could not save room history',e)}}
+function rememberRoom(code,roomState,touch){
+ if(!validRoomCode(code))return;
+ const rooms=savedRooms(),prior=rooms.find(r=>r.code===code)||{code,opened:0,players:[],games:0};
+ const entry={...prior,opened:touch?Date.now():prior.opened,unavailable:false};
+ if(roomState&&typeof roomState==='object'){
+   const players=Array.isArray(roomState.players)?roomState.players:Object.values(roomState.players||{});
+   if(players.length>=2&&players.length<=4)entry.players=players.map(p=>String(p.name||'Player')).slice(0,4);
+   const events=Array.isArray(roomState.events)?roomState.events:Object.values(roomState.events||{});
+   entry.games=events.filter(e=>e?.kind==='game').length;
+ }
+ persistSavedRooms([entry,...rooms.filter(r=>r.code!==code)].sort((a,b)=>b.opened-a.opened));
+}
+function forgetSavedRoom(code){
+ const rooms=savedRooms().filter(r=>r.code!==code);persistSavedRooms(rooms);
+ if(localStorage.getItem(LAST_ROOM_KEY)===code){if(rooms.length)localStorage.setItem(LAST_ROOM_KEY,rooms[0].code);else localStorage.removeItem(LAST_ROOM_KEY)}
+}
+function renderSavedRooms(){
+ const all=savedRooms(),q=$('sessionSearch').value.trim().toLowerCase();
+ const rooms=all.filter(r=>!q||(r.code.toLowerCase().includes(q)||r.players.some(name=>name.toLowerCase().includes(q))));
+ $('sessionListStatus').textContent=`${all.length} saved room${all.length===1?'':'s'} on this device`;
+ $('sessionsList').innerHTML=rooms.length?rooms.map(r=>{
+  const names=r.players.length?r.players.join(' · '):'Open to load player names';
+  const last=r.opened?new Date(r.opened).toLocaleString('en-SG',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Previously visited';
+  return `<div class="savedRoom"><button type="button" class="savedRoomInfo" data-open-room="${escapeHtml(r.code)}" aria-label="Open room ${escapeHtml(r.code)}"><span class="savedRoomTop"><strong class="savedRoomCode">${escapeHtml(r.code)}</strong>${r.code===session.code?'<span class="savedRoomBadge">CURRENT</span>':''}</span><span class="savedRoomPeople">${escapeHtml(names)}</span><span class="savedRoomMeta">${r.games} completed game${r.games===1?'':'s'} · ${escapeHtml(last)}</span></button><button type="button" class="savedRoomForget" data-forget-room="${escapeHtml(r.code)}" aria-label="Remove room ${escapeHtml(r.code)} from this device">Forget</button></div>`;
+ }).join(''):`<div class="empty">${q?'No matching sessions.':'No saved sessions yet. Create one or join with a room code.'}</div>`;
+}
+function showSessions(){
+ $('welcomeScreen').hidden=true;$('appShell').hidden=true;$('sessionsScreen').hidden=false;window.scrollTo(0,0);
+ $('sessionSearch').value='';renderSavedRooms();refreshSavedRoomDetails();
+}
+async function openSavedRoom(code){
+ if(session.mode==='live'&&session.code===code){$('sessionsScreen').hidden=true;$('appShell').hidden=false;window.scrollTo(0,0);return}
+ await joinFromInput(code);
+}
+async function refreshSavedRoomDetails(){
+ const rooms=savedRooms();if(!rooms.length||!configured)return;
+ try{
+  const fb=await ensureFirebase();
+  await Promise.all(rooms.map(async room=>{
+   try{const snap=await fb.dbAPI.get(fb.dbAPI.ref(fb.db,'rooms/'+room.code+'/data'));
+    if(snap.exists())rememberRoom(room.code,snap.val(),false);
+   }catch(e){console.debug('Room metadata unavailable',room.code,e)}
+  }));
+  if(!$('sessionsScreen').hidden)renderSavedRooms();
+ }catch(e){console.warn('Could not refresh session list',e)}
+}
+
 const KEY='sg_numberball_v05_demo';
 const LAST_ROOM_KEY='sg_numberball_v05_recent_room';
+const SAVED_ROOMS_KEY='sg_numberball_v071_saved_rooms';
 const $=id=>document.getElementById(id);
 const defaultNames=['Player 1','Player 2','Player 3','Player 4'];
 const defaults=(count=4)=>({players:defaultNames.slice(0,count).map((name,i)=>({id:'p'+(i+1),name})),rates:{bonus:5,game:10,foul:1},selected:'p1',events:[],revision:0});
@@ -185,6 +261,6 @@ function showSettlement(){const t=totals(),transfers=netTransfers(t.gameBalances
 $('settlementBtn').onclick=showSettlement;
 $('copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(settlementSummary());notify('Settlement copied')}catch(e){notify('Clipboard unavailable; use CSV export')}};
 const csv=value=>'"'+String(value??'').replaceAll('"','""')+'"';
-$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(e.payerAmounts||{}).map(([id,v])=>`${name(id)}: ${v}`).join('; '):(e.payers||[]).map(name).join('; '),e.total??e.amount,e.quantity||0,e.poolDelta||0,e.reason||'']),[],['PLAYER','GAME + BONUS NET SGD','TABLE FEE CONTRIBUTION SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],-t.foulBalances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v062-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
+$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(e.payerAmounts||{}).map(([id,v])=>`${name(id)}: ${v}`).join('; '):(e.payers||[]).map(name).join('; '),e.total??e.amount,e.quantity||0,e.poolDelta||0,e.reason||'']),[],['PLAYER','GAME + BONUS NET SGD','TABLE FEE CONTRIBUTION SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],-t.foulBalances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v071-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 setupLanding();

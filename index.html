@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101318">
-<title>Number Ball — Live Scorekeeper v0.7.0</title>
+<title>Number Ball — Live Scorekeeper v0.7.1</title>
 <style>
 :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;--bg:#101318;--panel:#1b2028;--panel2:#232a34;--line:#333c4a;--text:#f1f4fa;--dim:#a4afbf;--gold:#dfb978;--green:#65d9a5;--red:#f58e9a}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 35% -9%,#1c2636,transparent 58%),var(--bg);color:var(--text);min-height:100vh;padding:24px 16px 70px}button,input,select{font:inherit}button{border:0;color:inherit;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-offset:3px}.wrap{max-width:1100px;margin:0 auto}
@@ -113,7 +113,7 @@ dialog{background:#1b202a;color:var(--text);border:1px solid #4c5b70;border-radi
 @media(max-width:700px){.pscores{gap:6px;margin:1px 0 3px}.pscores .pvalue{font-size:23px}.pfoul{font-size:15px}}
 @media(max-width:370px){.pscores{gap:5px}.pscores .pvalue{font-size:20px}.pfoul{font-size:13px}}
 
-/* V0.7.0 Simple Dark: visual-only update. No scoring or networking logic changed. */
+/* V0.7.1 Simple Dark: visual-only update. No scoring or networking logic changed. */
 body{background:#101318;color:var(--text)}
 .ball{background:linear-gradient(145deg,#c4d6f1,#7593bd);box-shadow:none;color:#111d2e;border:1px solid #93abce}
 .header{margin-bottom:16px}
@@ -134,6 +134,30 @@ body{background:#101318;color:var(--text)}
 .roomActions button.share{background:#dcb979;color:#1b222b;border-color:#dcb979}
 #quickScoringPanel{background:#1d2430;border-color:#455365;box-shadow:0 8px 28px #0008}
 @media(max-width:700px){#quickScoringPanel{background:#1d2430;border:1px solid #4c5868;box-shadow:0 8px 28px #0008}}
+/* V0.7.1: green connection confirmation and a private, browser-saved session library. */
+.roomStatus{color:var(--dim);transition:color .15s ease}
+.roomStatus.is-live{color:#70e6a4;font-weight:800}
+.roomStatus.is-live::first-letter{color:#55e78e}
+.roomStatus.is-warning{color:#efbb75}
+.sessionsScreen{max-width:780px;margin-top:12px;padding-bottom:50px}
+.sessionPageHead{display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:20px}
+.sessionPageHead h1{font-size:30px}
+.sessionPageHead .muted{font-size:13px;margin-top:8px}
+.libraryActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:22px}
+.libraryActions .primary{min-height:48px}
+.sessionsList{display:grid;gap:10px;margin-top:13px}
+.savedRoom{display:flex;align-items:stretch;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px}
+.savedRoomInfo{flex:1;min-width:0;text-align:left;background:transparent;padding:6px 6px;border-radius:9px}
+.savedRoomInfo:active{background:var(--panel2)}
+.savedRoomTop{display:flex;gap:9px;align-items:center;margin-bottom:9px;flex-wrap:wrap}
+.savedRoomCode{font-size:17px;font-weight:900;letter-spacing:.1em;color:var(--text)}
+.savedRoomBadge{font-size:10px;font-weight:800;color:var(--green);background:#19372d;border-radius:20px;padding:4px 8px}
+.savedRoomPeople{display:block;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.savedRoomMeta{display:block;font-size:11px;margin-top:5px;color:var(--dim)}
+.savedRoomForget{flex:0 0 auto;align-self:center;background:#262d38;color:#b9c6d7;border:1px solid #3d4756;border-radius:9px;padding:11px 10px;font-size:11px;font-weight:700}
+.libraryPrivacy{font-size:12px;color:var(--dim);line-height:1.6;margin:20px 0 0}
+.sessionsScreen .empty{border:1px dashed var(--line);border-radius:14px;padding:30px 15px}
+@media(max-width:700px){.sessionsScreen{padding-bottom:25px}.sessionPageHead h1{font-size:26px}.sessionPageHead .secondary{padding:10px}.savedRoom{padding:9px}.savedRoomCode{font-size:15px}.savedRoomPeople{font-size:11px}}
 </style>
 </head>
 <body>
@@ -142,14 +166,23 @@ body{background:#101318;color:var(--text)}
   <p id="welcomeSetup" class="welcomeNotice" hidden></p>
   <div class="joinChoices">
     <section class="joinCard"><div class="joinIcon">✦</div><h2>New session</h2><p>Set up a fresh scoreboard. We'll generate a unique 6-character code to share with your group.</p><form id="createForm" class="joinForm"><label for="newPlayerCount">Players</label><select id="newPlayerCount"><option value="2">2 players</option><option value="3">3 players</option><option value="4" selected>4 players</option></select><button class="primary" id="createBtn" type="submit">Create session →</button></form></section>
-    <section class="joinCard"><div class="joinIcon">⌁</div><h2>Continue / join</h2><p>Joining from another phone? Enter the session code. Returning later? Use your saved room code.</p><form class="joinForm" id="joinForm"><label for="joinCode">Room code</label><input id="joinCode" type="text" maxlength="8" minlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="6-CHAR CODE" required><button class="primary" type="submit" id="joinBtn">Join session →</button></form><button class="secondary" id="recentBtn" type="button" hidden>Continue last session</button></section>
+    <section class="joinCard"><div class="joinIcon">⌁</div><h2>Continue / join</h2><p>Joining from another phone? Enter the session code. Returning later? Use your saved room code.</p><form class="joinForm" id="joinForm"><label for="joinCode">Room code</label><input id="joinCode" type="text" maxlength="8" minlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="6-CHAR CODE" required><button class="primary" type="submit" id="joinBtn">Join session →</button></form><button class="secondary" id="recentBtn" type="button" hidden>Continue last session</button><button class="secondary" id="browseBtn" type="button">☷ Browse my sessions</button></section>
   </div>
   <div class="welcomeSpinner" id="welcomeBusy" role="status"></div>
   <p class="welcomeNote">No account needed for players. <button id="demoBtn" type="button">Try an offline demo</button><span id="demoHint"> · Connect Firebase for live sessions.</span></p>
 </section>
+<section class="wrap sessionsScreen" id="sessionsScreen" aria-label="My sessions" hidden>
+  <div class="sessionPageHead"><div><div class="eyebrow">NUMBER BALL · SESSION LIBRARY</div><h1>My sessions</h1><p class="muted">Rooms opened on this device. Tap a room to continue.</p></div><button type="button" class="secondary" id="sessionBackBtn">← Back</button></div>
+  <div class="libraryActions"><button class="primary" type="button" id="sessionNewBtn">＋ New session</button><button class="secondary" type="button" id="sessionJoinBtn">Join by code</button></div>
+  <label class="field" for="sessionSearch">Find a room</label>
+  <input id="sessionSearch" type="search" placeholder="Search player name or room code" autocomplete="off">
+  <p class="small" id="sessionListStatus" role="status"></p>
+  <div class="sessionsList" id="sessionsList"></div>
+  <p class="libraryPrivacy">Only rooms you've previously created or joined on this browser are listed. This isn't a public directory; you can join another room using its code.</p>
+</section>
 <div class="wrap" id="appShell" hidden>
-<header class="header"><div class="identity"><div class="ball">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.7.0</div><h1>NUMBER BALL</h1><p class="muted">Session tracker</p></div></div><div class="headbuttons"><button class="headbtn" id="settingsBtn">⚙ Session</button><button class="headbtn highlight" id="settlementBtn">▤ Settlement</button></div></header>
-<div class="roomStrip"><div class="roomInfo"><button id="roomCode" class="roomCode" type="button" title="Copy room code. Existing rooms keep their original code; new rooms use 6 characters.">DEMO</button><span class="roomStatus" id="connectionStatus">Not connected</span></div><div class="roomActions"><button class="share" id="shareBtn" type="button">↗ Share room</button><button id="leaveBtn" type="button">⇄ Switch room</button></div></div>
+<header class="header"><div class="identity"><div class="ball">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.7.1</div><h1>NUMBER BALL</h1><p class="muted">Session tracker</p></div></div><div class="headbuttons"><button class="headbtn" id="settingsBtn">⚙ Session</button><button class="headbtn highlight" id="settlementBtn">▤ Settlement</button></div></header>
+<div class="roomStrip"><div class="roomInfo"><button id="roomCode" class="roomCode" type="button" title="Copy room code. Existing rooms keep their original code; new rooms use 6 characters.">DEMO</button><span class="roomStatus" id="connectionStatus" role="status">Not connected</span></div><div class="roomActions"><button class="share" id="shareBtn" type="button">↗ Share room</button><button id="leaveBtn" type="button">☷ Sessions</button></div></div>
 <div class="stats"><div class="stat"><span>Game</span><b id="gameNo">01</b></div><div class="stat"><span>Bonus rate</span><b id="bonusRateStat">5</b></div><div class="stat"><span>Game rate</span><b id="gameRateStat">10</b></div><div class="stat foul"><span>Foul pool</span><b id="poolStat">0</b></div></div>
 <div class="sectionhead"><h2>Players</h2><span class="small">Tap to select</span></div>
 <section class="players" id="players" aria-label="Choose player"></section>
@@ -179,6 +212,6 @@ body{background:#101318;color:var(--text)}
 <dialog id="settlementDialog"><div class="modalhead"><h2>Session settlement</h2><button type="button" class="close" data-close="settlementDialog" aria-label="Close">✕</button></div><p class="settlelead">This is the private breakdown. Close to return to the clean scoreboard.</p><div class="settlestats"><div class="settlebox"><span>Game & bonus movement</span><strong id="settleMovement">$0</strong></div><div class="settlebox"><span>Reserved for table fees</span><strong id="settlePool">$0</strong></div></div><section class="settlesection"><h3>Who pays whom</h3><div id="settleLines"></div></section><section class="settlesection"><h3>Foul pool · Table fees</h3><div id="settleFouls"></div></section><div class="notice">Game and bonus balances are netted between players. Foul contributions are separate and reserved for table fees, not paid to a player.</div><div class="settletools"><button class="secondary" type="button" id="copyBtn">Copy settlement</button><button class="secondary" type="button" id="exportBtn">Export CSV</button></div><div class="modalbtns"><button class="primary" type="button" data-close="settlementDialog">Done</button></div></dialog>
 
 <script src="./firebase-config.js"></script>
-<script src="./app.js?v=0.7.0" defer></script>
+<script src="./app.js?v=0.7.1" defer></script>
 </body>
 </html>
