@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#071811">
-<title>Number Ball — Live Scorekeeper v0.5</title>
+<title>Number Ball — Live Scorekeeper v0.6.1</title>
 <style>
 :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;--bg:#071711;--panel:#10281c;--panel2:#163324;--line:#2c4939;--text:#f3f6ec;--dim:#a8bbaa;--gold:#f1cc7b;--green:#8decb7;--red:#f6a1a4}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 35% -9%,#1c4b35,transparent 58%),var(--bg);color:var(--text);min-height:100vh;padding:24px 16px 70px}button,input,select{font:inherit}button{border:0;color:inherit;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-offset:3px}.wrap{max-width:1100px;margin:0 auto}
@@ -47,6 +47,64 @@ dialog{background:#10271c;color:var(--text);border:1px solid #4d7454;border-radi
 .roomActions button.share{background:var(--gold);color:#17251b;border-color:var(--gold)}
 .welcomeSpinner{color:var(--gold);font-size:12px;text-align:center;min-height:21px;margin:8px}
 @media(max-width:640px){.welcome{margin-top:3vh}.joinChoices{grid-template-columns:1fr}.joinCard{padding:20px}.roomStrip{align-items:stretch;flex-direction:column}.roomActions{display:grid;grid-template-columns:1fr 1fr}.roomActions button{min-height:43px}.headbuttons{gap:5px}.headbtn{padding:10px 11px;font-size:11px}.header{align-items:flex-start}}
+
+/* v0.6: first-screen mobile scoring; other screens retain the original layout. */
+@media(max-width:700px){
+ body{padding:10px 10px calc(165px + env(safe-area-inset-bottom,0px));}
+ .header{align-items:center;gap:7px;margin-bottom:10px}
+ .identity{gap:8px;min-width:0}
+ .identity .ball{width:35px;height:35px;font-size:16px}
+ .identity h1{font-size:20px}
+ .identity .eyebrow{font-size:8px;letter-spacing:.09em;margin:0 0 2px}
+ .identity .muted{display:none}
+ .headbuttons{flex-direction:row;gap:5px}
+ .headbtn{width:auto;padding:9px 9px;font-size:10px;border-radius:9px}
+ .roomStrip{flex-direction:row;align-items:center;gap:7px;margin:0 0 10px;padding:8px 9px;border-radius:11px}
+ .roomInfo{flex-wrap:nowrap;gap:7px}
+ .roomCode{letter-spacing:.08em;font-size:13px;padding:7px 8px}
+ .roomStatus{font-size:10px;white-space:nowrap}
+ .roomActions{display:flex;gap:5px}
+ .roomActions button{font-size:10px;padding:7px 8px;min-height:32px}
+ .stats{gap:5px}
+ .stat{padding:8px 7px;min-height:50px;border-radius:10px}
+ .stat span{font-size:9px;margin-bottom:4px;min-height:0;line-height:1.05}
+ .stat b{font-size:18px;line-height:1.05}
+ .sectionhead{margin:10px 0 7px}
+ .sectionhead h2{font-size:15px}
+ .sectionhead .small{font-size:10px}
+ .players{gap:7px}
+ .player{min-height:104px;padding:9px 11px;border-radius:12px}
+ .avatar{width:23px;height:23px;font-size:10px}
+ .indicator{font-size:0}
+ .indicator::after{content:'○';font-size:14px}
+ .player.active .indicator::after{content:'✓'}
+ .pname{font-size:14px;margin-top:3px}
+ .pvalue{font-size:23px;margin:1px 0 3px}
+ .pfoot{font-size:9px}
+ .main{margin-top:12px}
+ #quickScoringPanel{position:fixed;left:10px;right:10px;bottom:calc(8px + env(safe-area-inset-bottom,0px));width:calc(100% - 20px);max-width:500px;margin:0 auto;z-index:12;padding:10px 10px 9px;border-radius:16px;background:linear-gradient(155deg,#163d2b,#0c271b);border:1px solid #66916e;box-shadow:0 0 0 2px #03150d,0 14px 45px #000c}
+ #quickScoringPanel .panelhead{align-items:center;margin-bottom:7px}
+ #quickScoringPanel .panelhead h2{font-size:12px}
+ #quickScoringPanel .panelhead .muted{display:none}
+ #quickScoringPanel .pill{font-size:12px;max-width:65%;padding:6px 12px}
+ #quickScoringPanel .actions{gap:6px}
+ #quickScoringPanel .act{min-height:56px;padding:8px 5px;display:flex;align-items:center;justify-content:center;flex-direction:row;gap:6px;text-align:center;border-radius:10px}
+ #quickScoringPanel .act .symbol{font-size:20px;line-height:1}
+ #quickScoringPanel .act b{font-size:12px;white-space:nowrap}
+ #quickScoringPanel .act small{display:none}
+ #quickScoringPanel .toolbar{margin-top:7px;gap:7px}
+ #quickScoringPanel .toolbar .secondary{padding:6px 9px;font-size:10px;border-radius:8px}
+ .toast{bottom:calc(165px + env(safe-area-inset-bottom,0px))}
+ dialog{max-height:85dvh}
+}
+@media(max-width:370px){
+ .identity .ball{display:none}
+ .identity h1{font-size:18px}
+ .headbtn{font-size:9px;padding:8px 7px}
+ .roomStatus{font-size:9px}
+ .roomActions button{font-size:9px;padding:7px 6px}
+ #quickScoringPanel .act b{font-size:11px}
+}
 </style>
 </head>
 <body>
@@ -54,20 +112,20 @@ dialog{background:#10271c;color:var(--text);border:1px solid #4d7454;border-radi
   <div class="welcomeHero"><div class="ball">15</div><div class="eyebrow">NUMBER BALL · LIVE SCOREKEEPER</div><h1>Your table. One scoreboard.</h1><p>Start a new session or join an existing table with its unique room code. Scores stay in sync across everyone's phones.</p></div>
   <p id="welcomeSetup" class="welcomeNotice" hidden></p>
   <div class="joinChoices">
-    <section class="joinCard"><div class="joinIcon">✦</div><h2>New session</h2><p>Set up a fresh scoreboard. We'll generate a unique 8-character code to share with your group.</p><form id="createForm" class="joinForm"><label for="newPlayerCount">Players</label><select id="newPlayerCount"><option value="2">2 players</option><option value="3">3 players</option><option value="4" selected>4 players</option></select><button class="primary" id="createBtn" type="submit">Create session →</button></form></section>
-    <section class="joinCard"><div class="joinIcon">⌁</div><h2>Continue / join</h2><p>Joining from another phone? Enter the session code. Returning later? Use your saved room code.</p><form class="joinForm" id="joinForm"><label for="joinCode">Room code</label><input id="joinCode" type="text" maxlength="8" minlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="8-CHAR CODE" required><button class="primary" type="submit" id="joinBtn">Join session →</button></form><button class="secondary" id="recentBtn" type="button" hidden>Continue last session</button></section>
+    <section class="joinCard"><div class="joinIcon">✦</div><h2>New session</h2><p>Set up a fresh scoreboard. We'll generate a unique 6-character code to share with your group.</p><form id="createForm" class="joinForm"><label for="newPlayerCount">Players</label><select id="newPlayerCount"><option value="2">2 players</option><option value="3">3 players</option><option value="4" selected>4 players</option></select><button class="primary" id="createBtn" type="submit">Create session →</button></form></section>
+    <section class="joinCard"><div class="joinIcon">⌁</div><h2>Continue / join</h2><p>Joining from another phone? Enter the session code. Returning later? Use your saved room code.</p><form class="joinForm" id="joinForm"><label for="joinCode">Room code</label><input id="joinCode" type="text" maxlength="8" minlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="6-CHAR CODE" required><button class="primary" type="submit" id="joinBtn">Join session →</button></form><button class="secondary" id="recentBtn" type="button" hidden>Continue last session</button></section>
   </div>
   <div class="welcomeSpinner" id="welcomeBusy" role="status"></div>
   <p class="welcomeNote">No account needed for players. <button id="demoBtn" type="button">Try an offline demo</button><span id="demoHint"> · Connect Firebase for live sessions.</span></p>
 </section>
 <div class="wrap" id="appShell" hidden>
-<header class="header"><div class="identity"><div class="ball">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.5</div><h1>NUMBER BALL</h1><p class="muted">Session tracker</p></div></div><div class="headbuttons"><button class="headbtn" id="settingsBtn">⚙ Session</button><button class="headbtn highlight" id="settlementBtn">▤ Settlement</button></div></header>
+<header class="header"><div class="identity"><div class="ball">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.6.1</div><h1>NUMBER BALL</h1><p class="muted">Session tracker</p></div></div><div class="headbuttons"><button class="headbtn" id="settingsBtn">⚙ Session</button><button class="headbtn highlight" id="settlementBtn">▤ Settlement</button></div></header>
 <div class="roomStrip"><div class="roomInfo"><button id="roomCode" class="roomCode" type="button" title="Copy room code">DEMO</button><span class="roomStatus" id="connectionStatus">Not connected</span></div><div class="roomActions"><button class="share" id="shareBtn" type="button">↗ Share room</button><button id="leaveBtn" type="button">⇄ Switch room</button></div></div>
 <div class="stats"><div class="stat"><span>Game</span><b id="gameNo">01</b></div><div class="stat"><span>Bonus rate</span><b id="bonusRateStat">5</b></div><div class="stat"><span>Game rate</span><b id="gameRateStat">10</b></div><div class="stat foul"><span>Foul pool</span><b id="poolStat">0</b></div></div>
 <div class="sectionhead"><h2>Players</h2><span class="small">Tap to select</span></div>
 <section class="players" id="players" aria-label="Choose player"></section>
 <section class="main"><div class="stack">
-<section class="panel"><div class="panelhead"><div><h2>Add result</h2><p class="muted">Select a player, then choose an action.</p></div><span class="pill" id="selectedBadge">Player 1</span></div>
+<section class="panel" id="quickScoringPanel"><div class="panelhead"><div><h2>Quick score</h2><p class="muted">Select a player, then choose an action.</p></div><span class="pill" id="selectedBadge">Player 1</span></div>
 <div class="actions"><button class="act" id="bonusBtn"><span class="symbol">＋</span><span><b>Bonus</b><small>All / Bao</small></span></button><button class="act game" id="gameBtn"><span class="symbol">★</span><span><b>Game win</b><small>All / Bao</small></span></button><button class="act foul" id="foulBtn"><span class="symbol">!</span><span><b>Foul</b><small>Record count</small></span></button></div>
 <div class="toolbar"><button class="secondary" id="adjustBtn">↔ Adjust</button><button class="secondary" id="undoBtn">↶ Undo</button></div></section>
 <section class="panel"><div class="panelhead"><div><h2>Fouls</h2><p class="muted">Count by player</p></div></div><div class="poolbar"><span>Foul pool</span><b id="poolMain">0</b></div><div class="foulgrid" id="foulCounts"></div></section>

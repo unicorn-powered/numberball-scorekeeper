@@ -7,21 +7,21 @@ const conf=window.NUMBERBALL_FIREBASE_CONFIG||{};
 const configured=['apiKey','authDomain','databaseURL','projectId','appId'].every(k=>typeof conf[k]==='string'&&conf[k].trim().length>0);
 let cloud=null, activeWrite=false;
 const normalizeRoomCode=s=>String(s||'').replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,8);
-const validRoomCode=code=>/^[A-HJ-NP-Z2-9]{8}$/.test(code);
+const validRoomCode=code=>/^[A-HJ-NP-Z2-9]{6}$/.test(code)||/^[A-HJ-NP-Z2-9]{8}$/.test(code);
 const roomAlphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function generateId(){const a=new Uint32Array(3);crypto.getRandomValues(a);return Date.now().toString(36)+'-'+Array.from(a,v=>v.toString(36)).join('');}
-function generateRoomCode(){const bytes=new Uint32Array(8);crypto.getRandomValues(bytes);return Array.from(bytes,x=>roomAlphabet[x%roomAlphabet.length]).join('');}
+function generateRoomCode(){const bytes=new Uint32Array(6);crypto.getRandomValues(bytes);return Array.from(bytes,x=>roomAlphabet[x%roomAlphabet.length]).join('');}
 function normalise(raw){const v=raw||{}, players=Array.isArray(v.players)?v.players:Object.values(v.players||{}),events=Array.isArray(v.events)?v.events:Object.values(v.events||{}),rates=v.rates||{};
  return {players:players.length>=2&&players.length<=4?players:defaults().players,rates:{bonus:Number(rates.bonus??5),game:Number(rates.game??10),foul:Number(rates.foul??1)},events,revision:Number(v.revision||0),selected:state.selected};}
 function roomPayload(draft){return {players:draft.players,rates:draft.rates,events:draft.events,revision:draft.revision};}
 function setBusy(busy,text=''){['createBtn','joinBtn','recentBtn'].forEach(id=>$(id).disabled=busy);$('welcomeBusy').textContent=text;}
 function showWelcome(){if(session.unsubscribe){session.unsubscribe();session.unsubscribe=null}if(session.unsubConnection){session.unsubConnection();session.unsubConnection=null}session.mode='none';session.code=null;session.connected=false;
- $('appShell').hidden=true;$('welcomeScreen').hidden=false;$('joinCode').value=normalizeRoomCode(new URLSearchParams(location.search).get('room')||localStorage.getItem(LAST_ROOM_KEY)||'');
+ $('appShell').hidden=true;$('welcomeScreen').hidden=false;window.scrollTo(0,0);$('joinCode').value=normalizeRoomCode(new URLSearchParams(location.search).get('room')||localStorage.getItem(LAST_ROOM_KEY)||'');
  const cleaned=new URL(location.href);cleaned.searchParams.delete('room');if(location.protocol==='https:'||location.protocol==='http:')history.replaceState(null,'',cleaned.pathname+cleaned.search+cleaned.hash);
  const recent=localStorage.getItem(LAST_ROOM_KEY);$('recentBtn').hidden=!recent;if(recent)$('recentBtn').textContent='Continue '+recent;
  setBusy(false);}
 function startRoom(mode,code,initialState){session.mode=mode;session.code=code;session.connected=(mode==='demo');state=normalise(initialState);state.selected=(mode==='live'?localStorage.getItem('sg_nb_selection_'+code):initialState?.selected)||state.players[0].id;
- $('welcomeScreen').hidden=true;$('appShell').hidden=false;
+ $('welcomeScreen').hidden=true;$('appShell').hidden=false;window.scrollTo(0,0);
  $('roomCode').textContent=code||'DEMO';$('shareBtn').hidden=mode!=='live';$('footerStatus').textContent=mode==='live'?'LIVE ROOM · Shared scoreboard':'OFFLINE DEMO · This device only';
  $('connectionStatus').textContent=mode==='live'?'Connecting…':'Stored on this device only';
  if(mode==='live'){localStorage.setItem(LAST_ROOM_KEY,code);const url=new URL(location.href);url.searchParams.set('room',code);(location.protocol==='https:'||location.protocol==='http:')&&history.replaceState(null,'',url.pathname+url.search+url.hash)}
@@ -58,7 +58,7 @@ async function createLiveRoom(count){if(count<2||count>4)throw Error('Choose 2�
  for(let tries=0;tries<5;tries++){const code=generateRoomCode(),ref=fb.dbAPI.ref(fb.db,'rooms/'+code),data=defaults(count);
  try{await fb.dbAPI.set(ref,{createdBy:session.uid,createdAt:Date.now(),data:roomPayload(data)});await joinLiveRoom(code,data);return;}catch(e){if(/permission.denied/i.test(String(e?.message||e))&&tries<4)continue;throw e;}}
  throw Error('Could not generate a unique room. Try again.');}
-async function joinFromInput(raw){const code=normalizeRoomCode(raw);if(!validRoomCode(code)){notify('Enter an 8-character room code');return;}
+async function joinFromInput(raw){const code=normalizeRoomCode(raw);if(!validRoomCode(code)){notify('Enter a 6-character code (or an older 8-character code)');return;}
  try{setBusy(true,'Joining '+code+'…');const fb=await ensureFirebase();const snap=await fb.dbAPI.get(fb.dbAPI.ref(fb.db,'rooms/'+code+'/data'));if(!snap.exists())throw Error('Room not found. Check the code.');await joinLiveRoom(code,snap.val());}
  catch(e){$('welcomeBusy').textContent=firebaseError(e);notify('Could not join room');console.warn(e)}finally{setBusy(false)}}
 async function joinLiveRoom(code,initial){const fb=await ensureFirebase();if(session.unsubscribe){session.unsubscribe();session.unsubscribe=null}if(session.unsubConnection){session.unsubConnection();session.unsubConnection=null}
@@ -102,9 +102,24 @@ const zero=()=>Object.fromEntries(state.players.map(p=>[p.id,0]));
 const save=()=>{if(session.mode==='demo'){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){console.warn(e)}}else if(session.mode==='live'&&session.code){try{localStorage.setItem('sg_nb_selection_'+session.code,state.selected)}catch(e){console.warn(e)}}};
 function notify(msg){let el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(notify.timeout);notify.timeout=setTimeout(()=>el.classList.remove('show'),2300)}
 function totals(){
+ // Two independent ledgers: player scores (bonus/game/adjustments) and
+ // table-fee contributions (fouls). Never deduct fouls from player scores.
+ // Historical rooms may contain foul events with negative deltas from v0.5/v0.6;
+ // ignore those deltas so old sessions also display the corrected scores.
  const balances=zero(),gameBalances=zero(),foulBalances=zero(),fouls=zero(),bonuses=zero(),games=zero();let pool=0;
- for(const e of state.events){for(const [id,delta] of Object.entries(e.deltas||{})){if(Object.hasOwn(balances,id)){balances[id]+=delta;(e.kind==='foul'?foulBalances:gameBalances)[id]+=delta;}}
-   pool+=e.poolDelta||0;if(e.kind==='foul'&&Object.hasOwn(fouls,e.actor))fouls[e.actor]+=(e.quantity||0);if(e.kind==='bonus'&&Object.hasOwn(bonuses,e.actor))bonuses[e.actor]++;if(e.kind==='game'&&Object.hasOwn(games,e.actor))games[e.actor]++;
+ for(const e of state.events){
+   if(e.kind!=='foul'){
+     for(const [id,delta] of Object.entries(e.deltas||{})){
+       if(Object.hasOwn(balances,id)){balances[id]+=delta;gameBalances[id]+=delta;}
+     }
+   }
+   if(e.kind==='foul'&&Object.hasOwn(fouls,e.actor)){
+     fouls[e.actor]+=(e.quantity||0);
+     foulBalances[e.actor]-=Number(e.poolDelta??e.amount??((e.quantity||0)*(e.rate||0)));
+   }
+   pool+=Number(e.poolDelta||0);
+   if(e.kind==='bonus'&&Object.hasOwn(bonuses,e.actor))bonuses[e.actor]++;
+   if(e.kind==='game'&&Object.hasOwn(games,e.actor))games[e.actor]++;
  }
  return {balances,gameBalances,foulBalances,fouls,bonuses,games,pool};
 }
@@ -148,7 +163,7 @@ $('transferForm').onsubmit=async e=>{e.preventDefault();const amounts=payerAlloc
 $('foulBtn').onclick=()=>{$('foulExplain').textContent=name(state.selected)+' selected';$('foulQty').value='1';updateFoulPreview();$('foulDialog').showModal()};
 function updateFoulPreview(){const qty=Math.max(1,Number($('foulQty').value)||1);$('foulPreview').textContent=`${qty} foul${qty===1?'':'s'} · Pool +${fmt(qty*state.rates.foul)}`;}
 $('foulQty').oninput=updateFoulPreview;
-$('foulForm').onsubmit=async e=>{e.preventDefault();const quantity=Number($('foulQty').value);if(!validInt(quantity,1,50)){notify('Choose 1–50 fouls');return}const amount=quantity*state.rates.foul,d=zero(),actor=state.selected;d[actor]-=amount;if(await record({kind:'foul',actor,quantity,rate:state.rates.foul,amount,payers:[],deltas:d,poolDelta:amount,gameNo:gameNo()})){$('foulDialog').close();notify('Foul recorded')}};
+$('foulForm').onsubmit=async e=>{e.preventDefault();const quantity=Number($('foulQty').value);if(!validInt(quantity,1,50)){notify('Choose 1–50 fouls');return}const amount=quantity*state.rates.foul,d=zero(),actor=state.selected;if(await record({kind:'foul',actor,quantity,rate:state.rates.foul,amount,payers:[],deltas:d,poolDelta:amount,gameNo:gameNo()})){$('foulDialog').close();notify('Foul recorded')}};
 $('undoBtn').onclick=async()=>{if(!state.events.length)return;if(await commit(draft=>{if(!draft.events.length)return false;draft.events.pop();}))notify('Last result undone')};
 $('adjustBtn').onclick=()=>{$('manualFrom').innerHTML=$('manualTo').innerHTML=state.players.map(p=>`<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join('');$('manualTo').value=state.selected;$('manualFrom').value=opponents()[0].id;$('manualAmount').value='5';$('manualReason').value='';$('manualDialog').showModal()};
 $('manualForm').onsubmit=async e=>{e.preventDefault();const actor=$('manualTo').value,from=$('manualFrom').value,amount=Number($('manualAmount').value);if(from===actor){notify('Choose different players');return}if(!validInt(amount,1,10000)){notify('Whole numbers only');return}const d=zero();d[actor]+=amount;d[from]-=amount;if(await record({kind:'manual',actor,payers:[from],amount,deltas:d,poolDelta:0,gameNo:gameNo(),reason:$('manualReason').value.trim()})){$('manualDialog').close();notify('Adjustment recorded')}};
@@ -170,6 +185,6 @@ function showSettlement(){const t=totals(),transfers=netTransfers(t.gameBalances
 $('settlementBtn').onclick=showSettlement;
 $('copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(settlementSummary());notify('Settlement copied')}catch(e){notify('Clipboard unavailable; use CSV export')}};
 const csv=value=>'"'+String(value??'').replaceAll('"','""')+'"';
-$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(e.payerAmounts||{}).map(([id,v])=>`${name(id)}: ${v}`).join('; '):(e.payers||[]).map(name).join('; '),e.total??e.amount,e.quantity||0,e.poolDelta||0,e.reason||'']),[],['PLAYER','NET SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v05-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
+$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(e.payerAmounts||{}).map(([id,v])=>`${name(id)}: ${v}`).join('; '):(e.payers||[]).map(name).join('; '),e.total??e.amount,e.quantity||0,e.poolDelta||0,e.reason||'']),[],['PLAYER','GAME + BONUS NET SGD','TABLE FEE CONTRIBUTION SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],-t.foulBalances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v061-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 setupLanding();
