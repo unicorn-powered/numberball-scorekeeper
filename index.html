@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101318">
-<title>Number Ball — Live Scorekeeper v0.9.3</title>
+<title>Number Ball — Live Scorekeeper v0.9.4</title>
 <style>
 :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;--bg:#101318;--panel:#1b2028;--panel2:#232a34;--line:#333c4a;--text:#f1f4fa;--dim:#a4afbf;--gold:#dfb978;--green:#65d9a5;--red:#f58e9a}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 35% -9%,#1c2636,transparent 58%),var(--bg);color:var(--text);min-height:100vh;padding:24px 16px 70px}button,input,select{font:inherit}button{border:0;color:inherit;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-offset:3px}.wrap{max-width:1100px;margin:0 auto}
@@ -255,7 +255,7 @@ body{background:#101318}
  .ratesGrid .stepper{gap:2px}
 }
 
-/* V0.9.3 — true-black neon palette. Visual-only overrides. */
+/* V0.9.4 — true-black neon palette. Visual-only overrides. */
 :root{color-scheme:dark;--bg:#050609;--panel:#0d1016;--panel2:#151a23;--line:#27303b;--text:#f4f8ff;--dim:#94a4b8;--gold:#a1f94b;--green:#49f5bb;--red:#ff5c98}
 body,body:has(.sessionsScreen:not([hidden])){background:radial-gradient(ellipse 85% 40% at 50% -16%,#10252c 0%,#050609 78%) fixed;color:var(--text)}
 .ball{background:radial-gradient(circle at 30% 25%,#d5ff8d,#92ed3d 58%,#367d35);color:#071009;border:1px solid #c5ff8a;box-shadow:0 0 22px #a1f94b2c}
@@ -306,7 +306,7 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 .rateStrip>span:nth-child(3) strong{color:#ff69a4}
 @media(max-width:380px){.rateStrip{gap:5px}.rateStrip>span{padding:8px 7px;font-size:11px}.rateStrip strong{font-size:13px}}
 
-/* V0.9.3 — player statistics and new-event activity alert. */
+/* V0.9.4 — player statistics and new-event activity alert. */
 .statsButton{color:#bffef5;border-color:#27665d;background:#11231f}
 .statsButton:hover{background:#17352d}
 .statsDialog{width:min(590px,calc(100vw - 20px))}
@@ -342,14 +342,14 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 }
 @media(prefers-reduced-motion:reduce){#activityPanel.activity-pulse{animation:none;border-color:#49f5bb}}
 
-/* V0.9.3 — prevent accidental Undo taps; secondary Cancel stays the safe option. */
+/* V0.9.4 — prevent accidental Undo taps; secondary Cancel stays the safe option. */
 #confirmYes.undoConfirm{background:#ff5c98;border:1px solid #ff84b4;color:#1c0811;box-shadow:0 0 18px #ff5c981a}
 #confirmYes.undoConfirm:hover{background:#ff83b3}
 </style>
 </head>
 <body>
 <section class="wrap sessionsScreen" id="sessionsScreen" aria-label="Number Ball home">
-  <div class="homeBrand"><div class="ball" aria-hidden="true">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.9.3</div><h1>NUMBER BALL</h1><p class="muted">Your table. Your scoreboard.</p></div></div>
+  <div class="homeBrand"><div class="ball" aria-hidden="true">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.9.4</div><h1>NUMBER BALL</h1><p class="muted">Your table. Your scoreboard.</p></div></div>
   <p id="welcomeSetup" class="welcomeNotice" hidden></p>
   <div class="libraryActions"><button class="primary" type="button" id="sessionNewBtn">＋ New session</button><button class="secondary" type="button" id="sessionJoinBtn">↗ Join by code</button></div>
   <div class="listHeading"><h2>Recent sessions</h2><span class="small" id="sessionListStatus" role="status"></span></div>
@@ -359,7 +359,7 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 </section>
 <div class="wrap" id="appShell" hidden>
 <div class="scoreTopbar"><button type="button" class="backHome" id="leaveBtn">← Sessions</button><div class="scoreTopActions"><button type="button" class="headbtn statsButton" id="statsBtn" aria-haspopup="dialog" aria-controls="statsDialog">▥ Stats</button><button type="button" class="headbtn iconSettings" id="settingsBtn" aria-label="Session settings">⚙ Settings</button><button type="button" class="headbtn highlight" id="settlementBtn">▤ Settlement</button></div></div>
-<header class="header slimHeader"><div class="identity"><div class="ball">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.9.3</div><h1>NUMBER BALL</h1></div></div></header>
+<header class="header slimHeader"><div class="identity"><div class="ball">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.9.4</div><h1>NUMBER BALL</h1></div></div></header>
 <div class="roomLine"><div class="roomInfo"><button id="roomCode" class="roomCode" type="button" title="Tap to copy room code">—</button><span class="roomStatus" id="connectionStatus" role="status">Connecting…</span></div><button class="shareIcon" id="shareBtn" type="button" title="Share room link" aria-label="Share room link">↗ Share</button></div>
 <div class="miniStats"><div class="miniStat"><span>Game</span><strong id="gameNo">01</strong></div><div class="miniStat"><span>Foul pool</span><strong class="poolText" id="poolStat">0</strong></div></div>
 <div class="rateStrip" aria-label="Current payout rates"><span>Bonus <strong id="scoreBonusRate">$1</strong></span><span>Game <strong id="scoreGameRate">$2</strong></span><span>Foul <strong id="scoreFoulRate">$1</strong></span></div>
@@ -367,7 +367,7 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 <section class="players" id="players" aria-label="Choose player"></section>
 <section class="main"><div class="stack">
 <section class="panel" id="quickScoringPanel"><div class="panelhead"><div><h2>Quick score</h2><p class="muted">Select a player, then choose an action.</p></div><span class="pill" id="selectedBadge">Player 1</span></div>
-<div class="actions"><button class="act" id="bonusBtn"><span class="symbol">＋</span><span><b>Bonus</b><small>All / Bao</small></span></button><button class="act game" id="gameBtn"><span class="symbol">★</span><span><b>Game win</b><small>All / Bao</small></span></button><button class="act foul" id="foulBtn"><span class="symbol">!</span><span><b>Foul</b><small>Record count</small></span></button></div>
+<div class="actions"><button class="act" id="bonusBtn"><span class="symbol">＋</span><span><b>Bonus</b><small id="bonusActionHint">All / Bao</small></span></button><button class="act game" id="gameBtn"><span class="symbol">★</span><span><b>Game win</b><small id="gameActionHint">All / Bao</small></span></button><button class="act foul" id="foulBtn"><span class="symbol">!</span><span><b>Foul</b><small>Record count</small></span></button></div>
 <div class="toolbar"><button class="secondary" id="adjustBtn">↔ Adjust</button><button class="secondary" id="undoBtn">↶ Undo</button></div></section>
 
 </div><div class="stack"><section class="panel" id="activityPanel"><div class="panelhead"><div><h2>Activity</h2><p class="muted">Latest results</p></div></div><div id="history"></div></section></div></section>
@@ -377,7 +377,7 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 <dialog id="createSessionDialog" class="setupDialog"><form id="createForm" novalidate>
   <div class="modalhead"><div><div class="eyebrow">NEW SESSION</div><h2>Set up your table</h2></div><button type="button" class="close" data-close="createSessionDialog" aria-label="Close">✕</button></div>
   <p class="muted">Fill in the players and all rates before the room is created. You can edit them later in Settings.</p>
-  <label class="field" for="newPlayerCount">Players</label><select id="newPlayerCount" required><option value="2">2 players</option><option value="3">3 players</option><option value="4" selected>4 players</option></select>
+  <label class="field" for="newPlayerCount">Players</label><select id="newPlayerCount" required><option value="2" selected>2 players</option><option value="3">3 players</option><option value="4">4 players</option></select>
   <div id="newNameFields" class="newNameGrid"></div>
   <div class="formSection"><div class="formSectionTitle">Session rates <span class="small">Whole numbers only</span></div><div class="ratesGrid">
   <div><label class="field" for="newBonusRate">Bonus</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="newBonusRate" data-step="-1">−</button><input id="newBonusRate" type="number" inputmode="numeric" min="0" max="10000" step="1" value="1" required><button class="stepbtn" type="button" data-step-target="newBonusRate" data-step="1">+</button></div></div>
@@ -393,7 +393,7 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 
 <dialog id="transferDialog"><form id="transferForm"><div class="modalhead"><h2 id="transferTitle">Bonus</h2><button type="button" class="close" data-close="transferDialog" aria-label="Close">✕</button></div><p class="muted" id="transferExplain">Select who covers this result.</p>
 <div class="totalband"><div><b id="receiverLabel">Player 1</b><small id="totalMath">5 × 3 others</small></div><b id="transferTotal">+15</b></div>
-<div class="mode" role="group" aria-label="Allocation mode"><button class="modebtn active" type="button" id="allMode" aria-pressed="true">All players<small>Standard split</small></button><button class="modebtn" type="button" id="baoMode" aria-pressed="false">Bao<small>One person only</small></button></div>
+<div class="mode" id="transferModes" role="group" aria-label="Allocation mode"><button class="modebtn active" type="button" id="allMode" aria-pressed="true">All players<small>Standard split</small></button><button class="modebtn" type="button" id="baoMode" aria-pressed="false">Bao<small>One person only</small></button></div>
 <div class="payergrid" id="payerTiles" aria-label="Choose person"></div><div class="notice" id="transferPreview" aria-live="polite"></div><div id="transferBreakdown"></div>
 <div class="modalbtns"><button class="secondary" type="button" data-close="transferDialog">Cancel</button><button class="primary" type="submit" id="transferSubmit">Record bonus</button></div></form></dialog>
 <dialog id="foulDialog"><form id="foulForm"><div class="modalhead"><h2>Record foul</h2><button type="button" class="close" data-close="foulDialog" aria-label="Close">✕</button></div><p class="muted" id="foulExplain"></p>
@@ -411,6 +411,6 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 <dialog id="settlementDialog"><div class="modalhead"><h2>Session settlement</h2><button type="button" class="close" data-close="settlementDialog" aria-label="Close">✕</button></div><p class="settlelead">This is the private breakdown. Close to return to the clean scoreboard.</p><div class="settlestats"><div class="settlebox"><span>Game & bonus movement</span><strong id="settleMovement">$0</strong></div><div class="settlebox"><span>Reserved for table fees</span><strong id="settlePool">$0</strong></div></div><section class="settlesection"><h3>Who pays whom</h3><div id="settleLines"></div></section><section class="settlesection"><h3>Foul pool · Table fees</h3><div id="settleFouls"></div></section><div class="notice">Game and bonus balances are netted between players. Foul contributions are separate and reserved for table fees, not paid to a player.</div><div class="settletools"><button class="secondary" type="button" id="copyBtn">Copy settlement</button><button class="secondary" type="button" id="exportBtn">Export CSV</button></div><div class="modalbtns"><button class="primary" type="button" data-close="settlementDialog">Done</button></div></dialog>
 
 <script src="./firebase-config.js"></script>
-<script src="./app.js?v=0.9.3" defer></script>
+<script src="./app.js?v=0.9.4" defer></script>
 </body>
 </html>

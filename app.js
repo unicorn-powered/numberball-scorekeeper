@@ -37,7 +37,7 @@ function populateNewNames(){
  $('newNameFields').innerHTML=Array.from({length:count},(_,i)=>`<div><label class="field" for="newName_${i}">Player ${i+1} name</label><input id="newName_${i}" name="newName_${i}" maxlength="28" autocomplete="off" placeholder="Enter player name" value="${escapeHtml(prior[i]||'')}" required></div>`).join('');
 }
 function openCreateDialog(){
- $('newPlayerCount').value='4';$('newNameFields').innerHTML='';populateNewNames();
+ $('newPlayerCount').value='2';$('newNameFields').innerHTML='';populateNewNames();
  $('newBonusRate').value='1';$('newGameRate').value='2';$('newFoulRate').value='1';
  $('createError').hidden=true;$('createSessionDialog').showModal();
 }
@@ -314,6 +314,7 @@ $('statsBtn').onclick=()=>{renderStats();$('statsDialog').showModal()};
 function render(){
  if(!state.players.some(p=>p.id===state.selected))state.selected=state.players[0].id;
  $('scoreBonusRate').textContent=fmt(state.rates.bonus);$('scoreGameRate').textContent=fmt(state.rates.game);$('scoreFoulRate').textContent=fmt(state.rates.foul);
+ const actionHint=state.players.length===2?'1-to-1 payout':'All / Bao';$('bonusActionHint').textContent=actionHint;$('gameActionHint').textContent=actionHint;
  const t=totals();if($('statsDialog').open)renderStats(t);$('gameNo').textContent=String(gameNo()).padStart(2,'0');$('poolStat').textContent=fmt(t.pool);$('undoBtn').disabled=!state.events.length;$('selectedBadge').textContent=name(state.selected);
  $('players').innerHTML=state.players.map(p=>`<button type="button" class="player ${p.id===state.selected?'active':''}" data-player="${escapeHtml(p.id)}" aria-pressed="${p.id===state.selected}"><div class="phead"><span class="avatar">${escapeHtml(p.name[0]?.toUpperCase()||'P')}</span><span class="indicator">${p.id===state.selected?'● ACTIVE':'TAP TO SELECT'}</span></div><div class="pname">${escapeHtml(p.name)}</div><div class="pscores"><span class="pvalue ${t.gameBalances[p.id]>0?'plus':t.gameBalances[p.id]<0?'minus':''}">${signed(t.gameBalances[p.id])}</span><span class="pfoul" title="Separate foul-pool contribution">(${signed(t.foulBalances[p.id])})</span></div><div class="pfoot"><span>★ ${t.games[p.id]} games</span><span>! ${t.fouls[p.id]} fouls</span></div></button>`).join('');
  $('players').querySelectorAll('[data-player]').forEach(b=>b.onclick=()=>{state.selected=b.dataset.player;save();render()});
@@ -321,7 +322,7 @@ function render(){
  const events=state.events.slice().reverse().slice(0,12);
  $('history').innerHTML=events.length?events.map(e=>{
    let kind=e.kind==='bonus'?'Bonus':e.kind==='game'?'Game win':e.kind==='foul'?'Foul ×'+e.quantity:'Adjustment';
-   let desc=e.kind==='foul'?'Added to pool':e.kind==='manual'?`From ${escapeHtml(name(e.payers?.[0]))}`:e.payers?.length===state.players.length-1?'All players':`Bao · ${escapeHtml(name(e.payers?.[0]))}`;
+   let desc=e.kind==='foul'?'Added to pool':e.kind==='manual'?`From ${escapeHtml(name(e.payers?.[0]))}`:state.players.length===2?`Paid by ${escapeHtml(name(e.payers?.[0]))}`:e.payers?.length===state.players.length-1?'All players':`Bao · ${escapeHtml(name(e.payers?.[0]))}`;
    let amount=valuedEvent(e).amount;
    return `<div class="entry"><div><b>${escapeHtml(name(e.actor))} · ${kind}</b><small>Game ${e.gameNo} · ${new Date(e.time).toLocaleTimeString('en-SG',{hour:'2-digit',minute:'2-digit'})} · ${desc}</small></div><span class="value">${e.kind==='foul'?'−':'+'}${fmt(amount)}</span></div>`;
  }).join(''):'<div class="empty">No results recorded yet.</div>';
@@ -329,13 +330,26 @@ function render(){
 let actionKind='bonus',mode='all',baoPlayer=null;
 const opponents=()=>state.players.filter(p=>p.id!==state.selected);
 const fixedTotal=()=>state.rates[actionKind]*(state.players.length-1);
-function payerAllocation(){if(mode==='all')return Object.fromEntries(opponents().map(p=>[p.id,state.rates[actionKind]]));return baoPlayer?{[baoPlayer]:fixedTotal()}:{};}
-function setMode(value){mode=value;if(value==='all')baoPlayer=null;$('allMode').classList.toggle('active',value==='all');$('baoMode').classList.toggle('active',value==='bao');$('allMode').setAttribute('aria-pressed',String(value==='all'));$('baoMode').setAttribute('aria-pressed',String(value==='bao'));updateTransfer();}
-function openTransfer(kind){actionKind=kind;baoPlayer=null;$('transferTitle').textContent=kind==='bonus'?'Record bonus':'Record game win';$('transferExplain').textContent='Choose All or Bao. Bao is always one player only.';$('receiverLabel').textContent=name(state.selected);$('totalMath').textContent=`${fmt(state.rates[kind])} × ${state.players.length-1} others`;$('transferTotal').textContent='+'+fmt(fixedTotal());setMode('all');$('transferDialog').showModal();}
-function updateTransfer(){const amounts=payerAllocation(),chosen=Object.keys(amounts);
- $('payerTiles').innerHTML=opponents().map(p=>{let yes=Object.hasOwn(amounts,p.id);return `<button class="payertile ${yes?'active':''}" type="button" data-payer="${escapeHtml(p.id)}" aria-pressed="${yes}"><b>${escapeHtml(p.name)}</b><span class="tilevalue">${yes?'−'+fmt(amounts[p.id]):'—'}</span><span class="tilenote">${yes?'✓ SELECTED':'TAP TO CHOOSE'}</span></button>`}).join('');
- $('payerTiles').querySelectorAll('[data-payer]').forEach(b=>b.onclick=()=>{if(mode==='all'){mode='bao';baoPlayer=b.dataset.payer;setMode('bao');}else{baoPlayer=b.dataset.payer;updateTransfer();}});
- $('transferPreview').textContent=mode==='all'?`Each of the ${opponents().length} other players gets −${fmt(state.rates[actionKind])}.`:(baoPlayer?`${name(baoPlayer)} covers the entire ${fmt(fixedTotal())}.`:'Choose one player for Bao.');
+function payerAllocation(){if(state.players.length===2)return Object.fromEntries(opponents().map(p=>[p.id,state.rates[actionKind]]));if(mode==='all')return Object.fromEntries(opponents().map(p=>[p.id,state.rates[actionKind]]));return baoPlayer?{[baoPlayer]:fixedTotal()}:{};}
+function setMode(value){mode=state.players.length===2?'all':value;if(mode==='all')baoPlayer=null;$('allMode').classList.toggle('active',mode==='all');$('baoMode').classList.toggle('active',mode==='bao');$('allMode').setAttribute('aria-pressed',String(mode==='all'));$('baoMode').setAttribute('aria-pressed',String(mode==='bao'));updateTransfer();}
+function openTransfer(kind){
+ actionKind=kind;baoPlayer=null;
+ const oneToOne=state.players.length===2;
+ $('transferTitle').textContent=kind==='bonus'?'Record bonus':'Record game win';
+ $('transferExplain').textContent=oneToOne?`Two-player payout: ${name(opponents()[0].id)} pays ${name(state.selected)}.`:'Choose All or Bao. Bao is always one player only.';
+ $('receiverLabel').textContent=name(state.selected);
+ $('totalMath').textContent=oneToOne?`1 opponent · ${cash(state.rates[kind])} per win`:`${fmt(state.rates[kind])} × ${state.players.length-1} others`;
+ $('transferTotal').textContent='+'+fmt(fixedTotal());
+ $('transferModes').hidden=oneToOne;
+ $('payerTiles').hidden=oneToOne;
+ setMode('all');$('transferDialog').showModal();
+}
+function updateTransfer(){const amounts=payerAllocation(),chosen=Object.keys(amounts),oneToOne=state.players.length===2;
+ if(!oneToOne){
+  $('payerTiles').innerHTML=opponents().map(p=>{let yes=Object.hasOwn(amounts,p.id);return `<button class="payertile ${yes?'active':''}" type="button" data-payer="${escapeHtml(p.id)}" aria-pressed="${yes}"><b>${escapeHtml(p.name)}</b><span class="tilevalue">${yes?'−'+fmt(amounts[p.id]):'—'}</span><span class="tilenote">${yes?'✓ SELECTED':'TAP TO CHOOSE'}</span></button>`}).join('');
+  $('payerTiles').querySelectorAll('[data-payer]').forEach(b=>b.onclick=()=>{if(mode==='all'){mode='bao';baoPlayer=b.dataset.payer;setMode('bao');}else{baoPlayer=b.dataset.payer;updateTransfer();}});
+ }else $('payerTiles').innerHTML='';
+ $('transferPreview').textContent=oneToOne?`${name(opponents()[0].id)} pays ${name(state.selected)} ${cash(fixedTotal())}.`:mode==='all'?`Each of the ${opponents().length} other players gets −${fmt(state.rates[actionKind])}.`:(baoPlayer?`${name(baoPlayer)} covers the entire ${fmt(fixedTotal())}.`:'Choose one player for Bao.');
  $('transferBreakdown').innerHTML=chosen.map(id=>`<div class="previewline"><span class="small">${escapeHtml(name(id))}</span><b>−${fmt(amounts[id])}</b></div>`).join('');
  $('transferSubmit').disabled=!chosen.length;$('transferSubmit').textContent=actionKind==='bonus'?'Record bonus':'Record game win';
 }
@@ -357,7 +371,7 @@ function describeUndoEvent(e){
  }
  if(e.kind==='bonus'||e.kind==='game'){
   const all=e.payers?.length===state.players.length-1;
-  const mode=all?'All':`Bao · ${name(e.payers?.[0])}`;
+  const mode=state.players.length===2?`Paid by ${name(e.payers?.[0])}`:all?'All':`Bao · ${name(e.payers?.[0])}`;
   return `${who} · ${e.kind==='bonus'?'Bonus':'Game win'} (${mode}, ${cash(amount)}).`;
  }
  return `Last recorded result for ${who}.`;
@@ -403,6 +417,6 @@ function showSettlement(){const t=totals(),transfers=netTransfers(t.gameBalances
 $('settlementBtn').onclick=showSettlement;
 $('copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(settlementSummary());notify('Settlement copied')}catch(e){notify('Clipboard unavailable; use CSV export')}};
 const csv=value=>'"'+String(value??'').replaceAll('"','""')+'"';
-$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(valuedEvent(e).deltas).filter(([id,v])=>v<0).map(([id,v])=>`${name(id)}: ${-v}`).join('; '):(e.payers||[]).map(name).join('; '),valuedEvent(e).amount,e.quantity||0,valuedEvent(e).poolDelta,e.reason||'']),[],['PLAYER','GAME + BONUS NET SGD','TABLE FEE CONTRIBUTION SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],-t.foulBalances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v093-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
+$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(valuedEvent(e).deltas).filter(([id,v])=>v<0).map(([id,v])=>`${name(id)}: ${-v}`).join('; '):(e.payers||[]).map(name).join('; '),valuedEvent(e).amount,e.quantity||0,valuedEvent(e).poolDelta,e.reason||'']),[],['PLAYER','GAME + BONUS NET SGD','TABLE FEE CONTRIBUTION SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],-t.foulBalances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v094-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 setupLanding();
