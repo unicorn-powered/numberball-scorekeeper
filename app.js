@@ -345,12 +345,43 @@ $('foulBtn').onclick=()=>{$('foulExplain').textContent=name(state.selected)+' se
 function updateFoulPreview(){const qty=Math.max(1,Number($('foulQty').value)||1);$('foulPreview').textContent=`${qty} foul${qty===1?'':'s'} · Pool +${fmt(qty*state.rates.foul)}`;}
 $('foulQty').oninput=updateFoulPreview;
 $('foulForm').onsubmit=async e=>{e.preventDefault();const quantity=Number($('foulQty').value);if(!validInt(quantity,1,50)){notify('Choose 1–50 fouls');return}const amount=quantity*state.rates.foul,d=zero(),actor=state.selected;if(await record({kind:'foul',actor,quantity,rate:state.rates.foul,amount,payers:[],deltas:d,poolDelta:amount,gameNo:gameNo()})){$('foulDialog').close();notify('Foul recorded')}};
-$('undoBtn').onclick=async()=>{if(!state.events.length)return;if(await commit(draft=>{if(!draft.events.length)return false;draft.events.pop();}))notify('Last result undone')};
+function describeUndoEvent(e){
+ const who=name(e.actor),amount=valuedEvent(e).amount;
+ if(e.kind==='foul'){
+  const quantity=Number(e.quantity)||1;
+  return `${who} · ${quantity} foul${quantity===1?'':'s'} (${cash(amount)} to the foul pool).`;
+ }
+ if(e.kind==='manual'){
+  const from=e.payers?.[0];
+  return `Adjustment: ${name(from)} → ${who}, ${cash(amount)}${e.reason?' · '+e.reason:''}.`;
+ }
+ if(e.kind==='bonus'||e.kind==='game'){
+  const all=e.payers?.length===state.players.length-1;
+  const mode=all?'All':`Bao · ${name(e.payers?.[0])}`;
+  return `${who} · ${e.kind==='bonus'?'Bonus':'Game win'} (${mode}, ${cash(amount)}).`;
+ }
+ return `Last recorded result for ${who}.`;
+}
+$('undoBtn').onclick=()=>{
+ if(!state.events.length)return;
+ const index=state.events.length-1,last=state.events[index];
+ const expected=eventIdentity(last,index),roomCode=session.code;
+ confirmAction('Undo last result?',`${describeUndoEvent(last)} This removes the result for everyone and recalculates the scores and foul pool.`,async()=>{
+  // In a shared room another player might have added an event while this popup was open.
+  // Never silently undo a different event from the one shown in the confirmation.
+  if(session.code!==roomCode){notify('Room changed. Undo cancelled.');return;}
+  if(await commit(draft=>{
+   const i=draft.events.length-1;
+   if(i<0||eventIdentity(draft.events[i],i)!==expected)return false;
+   draft.events.pop();
+  }))notify('Last result undone');
+ },'Undo result');
+};
 $('adjustBtn').onclick=()=>{$('manualFrom').innerHTML=$('manualTo').innerHTML=state.players.map(p=>`<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join('');$('manualTo').value=state.selected;$('manualFrom').value=opponents()[0].id;$('manualAmount').value='5';$('manualReason').value='';$('manualDialog').showModal()};
 $('manualForm').onsubmit=async e=>{e.preventDefault();const actor=$('manualTo').value,from=$('manualFrom').value,amount=Number($('manualAmount').value);if(from===actor){notify('Choose different players');return}if(!validInt(amount,1,10000)){notify('Whole numbers only');return}const d=zero();d[actor]+=amount;d[from]-=amount;if(await record({kind:'manual',actor,payers:[from],amount,deltas:d,poolDelta:0,gameNo:gameNo(),reason:$('manualReason').value.trim()})){$('manualDialog').close();notify('Adjustment recorded')}};
 function buildNames(count){$('nameFields').innerHTML=Array.from({length:count},(_,i)=>`<label class="field" for="player_${i}">Player ${i+1}</label><input id="player_${i}" maxlength="28" required value="${escapeHtml(state.players[i]?.name||defaultNames[i])}">`).join('')}
 $('settingsBtn').onclick=()=>{$('playerCount').value=state.players.length;$('bonusRate').value=state.rates.bonus;$('gameRate').value=state.rates.game;$('foulRate').value=state.rates.foul;buildNames(state.players.length);$('settingsDialog').showModal()};$('playerCount').onchange=()=>buildNames(Number($('playerCount').value));
-function confirmAction(title,body,callback){$('confirmTitle').textContent=title;$('confirmText').textContent=body;$('confirmDialog').showModal();$('confirmYes').onclick=()=>{$('confirmDialog').close();callback()};}
+function confirmAction(title,body,callback,label='Confirm'){$('confirmTitle').textContent=title;$('confirmText').textContent=body;$('confirmYes').textContent=label;$('confirmYes').classList.toggle('undoConfirm',label==='Undo result');$('confirmDialog').showModal();$('confirmYes').onclick=()=>{$('confirmDialog').close();callback()};}
 $('settingsForm').onsubmit=async e=>{e.preventDefault();const count=Number($('playerCount').value),rates={bonus:Number($('bonusRate').value),game:Number($('gameRate').value),foul:Number($('foulRate').value)};if(Object.values(rates).some(v=>!validInt(v))){notify('Use whole-number rates');return}const names=Array.from({length:count},(_,i)=>$('player_'+i).value.trim());if(names.some(x=>!x)||new Set(names.map(x=>x.toLowerCase())).size!==count){notify('Enter distinct player names');return}
  const apply=async()=>{if(await commit(draft=>{const old=draft.players;draft.players=names.map((name,i)=>({id:old[i]?.id||'p'+(i+1),name}));if(Object.keys(rates).some(k=>rates[k]!==draft.rates[k])&&draft.events.length&&!draft.rateBackup){draft.rateBackup={rates:{...draft.rates},events:JSON.parse(JSON.stringify(draft.events)),savedAt:new Date().toISOString()};}draft.rates=rates;if(count!==old.length)draft.events=[];})){$('settingsDialog').close();notify('Session updated')}};
  if(count!==state.players.length&&state.events.length)confirmAction('Change players?',`Changing the count clears all previous results, fouls and pool totals.`,apply);
@@ -372,6 +403,6 @@ function showSettlement(){const t=totals(),transfers=netTransfers(t.gameBalances
 $('settlementBtn').onclick=showSettlement;
 $('copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(settlementSummary());notify('Settlement copied')}catch(e){notify('Clipboard unavailable; use CSV export')}};
 const csv=value=>'"'+String(value??'').replaceAll('"','""')+'"';
-$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(valuedEvent(e).deltas).filter(([id,v])=>v<0).map(([id,v])=>`${name(id)}: ${-v}`).join('; '):(e.payers||[]).map(name).join('; '),valuedEvent(e).amount,e.quantity||0,valuedEvent(e).poolDelta,e.reason||'']),[],['PLAYER','GAME + BONUS NET SGD','TABLE FEE CONTRIBUTION SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],-t.foulBalances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v092-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
+$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(valuedEvent(e).deltas).filter(([id,v])=>v<0).map(([id,v])=>`${name(id)}: ${-v}`).join('; '):(e.payers||[]).map(name).join('; '),valuedEvent(e).amount,e.quantity||0,valuedEvent(e).poolDelta,e.reason||'']),[],['PLAYER','GAME + BONUS NET SGD','TABLE FEE CONTRIBUTION SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],-t.foulBalances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v093-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 setupLanding();
