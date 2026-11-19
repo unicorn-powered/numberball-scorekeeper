@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101318">
-<title>Number Ball — Live Scorekeeper v0.9.4</title>
+<title>Number Ball — Live Scorekeeper v0.9.5</title>
 <style>
 :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;--bg:#101318;--panel:#1b2028;--panel2:#232a34;--line:#333c4a;--text:#f1f4fa;--dim:#a4afbf;--gold:#dfb978;--green:#65d9a5;--red:#f58e9a}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 35% -9%,#1c2636,transparent 58%),var(--bg);color:var(--text);min-height:100vh;padding:24px 16px 70px}button,input,select{font:inherit}button{border:0;color:inherit;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-offset:3px}.wrap{max-width:1100px;margin:0 auto}
@@ -255,7 +255,7 @@ body{background:#101318}
  .ratesGrid .stepper{gap:2px}
 }
 
-/* V0.9.4 — true-black neon palette. Visual-only overrides. */
+/* V0.9.5 — true-black neon palette. Visual-only overrides. */
 :root{color-scheme:dark;--bg:#050609;--panel:#0d1016;--panel2:#151a23;--line:#27303b;--text:#f4f8ff;--dim:#94a4b8;--gold:#a1f94b;--green:#49f5bb;--red:#ff5c98}
 body,body:has(.sessionsScreen:not([hidden])){background:radial-gradient(ellipse 85% 40% at 50% -16%,#10252c 0%,#050609 78%) fixed;color:var(--text)}
 .ball{background:radial-gradient(circle at 30% 25%,#d5ff8d,#92ed3d 58%,#367d35);color:#071009;border:1px solid #c5ff8a;box-shadow:0 0 22px #a1f94b2c}
@@ -306,7 +306,7 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 .rateStrip>span:nth-child(3) strong{color:#ff69a4}
 @media(max-width:380px){.rateStrip{gap:5px}.rateStrip>span{padding:8px 7px;font-size:11px}.rateStrip strong{font-size:13px}}
 
-/* V0.9.4 — player statistics and new-event activity alert. */
+/* V0.9.5 — player statistics and new-event activity alert. */
 .statsButton{color:#bffef5;border-color:#27665d;background:#11231f}
 .statsButton:hover{background:#17352d}
 .statsDialog{width:min(590px,calc(100vw - 20px))}
@@ -342,14 +342,31 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 }
 @media(prefers-reduced-motion:reduce){#activityPanel.activity-pulse{animation:none;border-color:#49f5bb}}
 
-/* V0.9.4 — prevent accidental Undo taps; secondary Cancel stays the safe option. */
+/* V0.9.5 — prevent accidental Undo taps; secondary Cancel stays the safe option. */
 #confirmYes.undoConfirm{background:#ff5c98;border:1px solid #ff84b4;color:#1c0811;box-shadow:0 0 18px #ff5c981a}
 #confirmYes.undoConfirm:hover{background:#ff83b3}
+
+/* V0.9.5 — neon event announcements. Pinned above the score so mobile users see them. */
+.scoreAnnouncement{--announce:#49f5bb;position:fixed;z-index:50;top:calc(13px + env(safe-area-inset-top,0px));left:50%;width:min(468px,calc(100vw - 20px));min-height:86px;padding:15px 19px;display:flex;align-items:center;gap:14px;border-radius:17px;border:1px solid var(--announce);background:linear-gradient(112deg,#111e22f5,#0b101af5 65%);color:#f5faff;box-shadow:0 10px 35px #000d,0 0 0 1px color-mix(in srgb,var(--announce) 27%,transparent),0 0 38px color-mix(in srgb,var(--announce) 24%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);pointer-events:none;transform:translate(-50%,-16px) scale(.96);opacity:0}
+.scoreAnnouncement[data-kind="game"]{--announce:#ba93ff;background:linear-gradient(110deg,#1b1427f7,#0b101af5 70%)}
+.scoreAnnouncement[data-kind="foul"]{--announce:#ff69a4;background:linear-gradient(110deg,#25121cf7,#0b101af5 70%)}
+.scoreAnnouncement[data-kind="manual"]{--announce:#f9c869;background:linear-gradient(110deg,#251e10f7,#0b101af5 70%)}
+.scoreAnnouncement.announceIn{animation:nbAnnounceIn .42s cubic-bezier(.17,1.35,.3,1) both}
+.scoreAnnouncement.announceOut{animation:nbAnnounceOut .22s ease both}
+.announceIcon{width:46px;height:46px;flex-shrink:0;display:grid;place-items:center;border-radius:13px;color:var(--announce);background:color-mix(in srgb,var(--announce) 15%,#081014);border:1px solid color-mix(in srgb,var(--announce) 45%,transparent);font-size:24px;font-weight:900;box-shadow:inset 0 0 18px color-mix(in srgb,var(--announce) 12%,transparent)}
+.announceCopy{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}
+.announceTag{color:var(--announce);font-size:10px;line-height:1.1;font-weight:900;letter-spacing:.16em;text-transform:uppercase}
+.announceText{font-size:clamp(15px,3.5vw,19px);line-height:1.3;letter-spacing:-.025em;font-weight:850;overflow-wrap:anywhere}
+.announceSpark{font-size:23px;color:var(--announce);opacity:.75;align-self:flex-start}
+@keyframes nbAnnounceIn{0%{transform:translate(-50%,-25px) scale(.94);opacity:0;filter:brightness(1.8)}55%{transform:translate(-50%,2px) scale(1.014);opacity:1;filter:brightness(1.25)}100%{transform:translate(-50%,0) scale(1);opacity:1;filter:brightness(1)}}
+@keyframes nbAnnounceOut{from{opacity:1;transform:translate(-50%,0) scale(1)}to{opacity:0;transform:translate(-50%,-15px) scale(.98)}}
+@media(max-width:480px){.scoreAnnouncement{min-height:78px;padding:12px 14px;gap:10px;border-radius:15px}.announceIcon{height:40px;width:40px;font-size:22px}.announceSpark{font-size:18px}}
+@media(prefers-reduced-motion:reduce){.scoreAnnouncement.announceIn,.scoreAnnouncement.announceOut{animation:none;opacity:1;transform:translate(-50%,0)}}
 </style>
 </head>
 <body>
 <section class="wrap sessionsScreen" id="sessionsScreen" aria-label="Number Ball home">
-  <div class="homeBrand"><div class="ball" aria-hidden="true">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.9.4</div><h1>NUMBER BALL</h1><p class="muted">Your table. Your scoreboard.</p></div></div>
+  <div class="homeBrand"><div class="ball" aria-hidden="true">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.9.5</div><h1>NUMBER BALL</h1><p class="muted">Your table. Your scoreboard.</p></div></div>
   <p id="welcomeSetup" class="welcomeNotice" hidden></p>
   <div class="libraryActions"><button class="primary" type="button" id="sessionNewBtn">＋ New session</button><button class="secondary" type="button" id="sessionJoinBtn">↗ Join by code</button></div>
   <div class="listHeading"><h2>Recent sessions</h2><span class="small" id="sessionListStatus" role="status"></span></div>
@@ -359,7 +376,7 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 </section>
 <div class="wrap" id="appShell" hidden>
 <div class="scoreTopbar"><button type="button" class="backHome" id="leaveBtn">← Sessions</button><div class="scoreTopActions"><button type="button" class="headbtn statsButton" id="statsBtn" aria-haspopup="dialog" aria-controls="statsDialog">▥ Stats</button><button type="button" class="headbtn iconSettings" id="settingsBtn" aria-label="Session settings">⚙ Settings</button><button type="button" class="headbtn highlight" id="settlementBtn">▤ Settlement</button></div></div>
-<header class="header slimHeader"><div class="identity"><div class="ball">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.9.4</div><h1>NUMBER BALL</h1></div></div></header>
+<header class="header slimHeader"><div class="identity"><div class="ball">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.9.5</div><h1>NUMBER BALL</h1></div></div></header>
 <div class="roomLine"><div class="roomInfo"><button id="roomCode" class="roomCode" type="button" title="Tap to copy room code">—</button><span class="roomStatus" id="connectionStatus" role="status">Connecting…</span></div><button class="shareIcon" id="shareBtn" type="button" title="Share room link" aria-label="Share room link">↗ Share</button></div>
 <div class="miniStats"><div class="miniStat"><span>Game</span><strong id="gameNo">01</strong></div><div class="miniStat"><span>Foul pool</span><strong class="poolText" id="poolStat">0</strong></div></div>
 <div class="rateStrip" aria-label="Current payout rates"><span>Bonus <strong id="scoreBonusRate">$1</strong></span><span>Game <strong id="scoreGameRate">$2</strong></span><span>Foul <strong id="scoreFoulRate">$1</strong></span></div>
@@ -372,6 +389,12 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 
 </div><div class="stack"><section class="panel" id="activityPanel"><div class="panelhead"><div><h2>Activity</h2><p class="muted">Latest results</p></div></div><div id="history"></div></section></div></section>
 
+</div>
+<!-- Neon scoring announcements appear on every device receiving a new event. -->
+<div id="scoreAnnouncement" class="scoreAnnouncement" role="status" aria-live="polite" aria-atomic="true" hidden>
+  <span id="announceIcon" class="announceIcon" aria-hidden="true">✦</span>
+  <span class="announceCopy"><span id="announceTag" class="announceTag">BONUS SCORED</span><strong id="announceText" class="announceText"></strong></span>
+  <span class="announceSpark" aria-hidden="true">✧</span>
 </div>
 <div id="toast" class="toast" aria-live="polite"></div>
 <dialog id="createSessionDialog" class="setupDialog"><form id="createForm" novalidate>
@@ -411,6 +434,6 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 <dialog id="settlementDialog"><div class="modalhead"><h2>Session settlement</h2><button type="button" class="close" data-close="settlementDialog" aria-label="Close">✕</button></div><p class="settlelead">This is the private breakdown. Close to return to the clean scoreboard.</p><div class="settlestats"><div class="settlebox"><span>Game & bonus movement</span><strong id="settleMovement">$0</strong></div><div class="settlebox"><span>Reserved for table fees</span><strong id="settlePool">$0</strong></div></div><section class="settlesection"><h3>Who pays whom</h3><div id="settleLines"></div></section><section class="settlesection"><h3>Foul pool · Table fees</h3><div id="settleFouls"></div></section><div class="notice">Game and bonus balances are netted between players. Foul contributions are separate and reserved for table fees, not paid to a player.</div><div class="settletools"><button class="secondary" type="button" id="copyBtn">Copy settlement</button><button class="secondary" type="button" id="exportBtn">Export CSV</button></div><div class="modalbtns"><button class="primary" type="button" data-close="settlementDialog">Done</button></div></dialog>
 
 <script src="./firebase-config.js"></script>
-<script src="./app.js?v=0.9.4" defer></script>
+<script src="./app.js?v=0.9.5" defer></script>
 </body>
 </html>

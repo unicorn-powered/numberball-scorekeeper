@@ -120,6 +120,7 @@ function resetActivityWatch(code){
  activityRoomCode=code;activityBaselineReady=false;activitySeen.clear();
  const panel=$('activityPanel');panel?.classList.remove('activity-pulse');
  clearTimeout(pulseActivity.timeout);
+ clearAnnouncements();
 }
 function pulseActivity(){
  if($('appShell').hidden)return;
@@ -130,17 +131,114 @@ function pulseActivity(){
  clearTimeout(pulseActivity.timeout);
  pulseActivity.timeout=setTimeout(()=>panel.classList.remove('activity-pulse'),1100);
 }
+// A small rotating pool of table banter. We hash each event ID so the same
+// scoring event gets the same phrase on every phone (no extra Firebase writes).
+const announcementLines={
+ bonus:[
+  n=>`${n} pockets a bonus! ✨`,
+  n=>`Oi! ${n} scores a bonus. ⚡`,
+  n=>`Bonus unlocked. Nice one, ${n}! 💚`,
+  n=>`${n} makes that bonus look easy. 🎱`,
+  n=>`Extra points for ${n}! ✨`,
+  n=>`The bonus belongs to ${n}! 🟢`,
+  n=>`Smooth move! Bonus for ${n}. 😎`,
+  n=>`${n} just made the scoreboard glow. 💚`,
+  n=>`That’s a bonus for ${n}. Nicely done! 🌟`,
+  n=>`Bonus alert: ${n} delivers! ⚡`
+ ],
+ game:[
+  n=>`GG! ${n} takes the game! 🏆`,
+  n=>`${n} seals the deal. Game won! 👑`,
+  n=>`Winner, winner! ${n} takes it. 🎱`,
+  n=>`Big finish! ${n} wins the game. 💜`,
+  n=>`${n} claims this round! 🔥`,
+  n=>`Game over. ${n} takes the crown! 👑`,
+  n=>`That’s a wrap! ${n} wins. ✨`,
+  n=>`Victory unlocked for ${n}! 🏆`,
+  n=>`${n} takes the W. Well played! 😎`,
+  n=>`Another game in the books for ${n}! 🎱`
+ ],
+ foul:[
+  (n,q)=>`Oops! ${n} ${q>1?'clocked '+q+' fouls':'fouled'}. 💸`,
+  (n,q)=>`Foul alert! ${n} adds ${q} to the count. 🚨`,
+  (n,q)=>`${n} just fed the foul pool. 😅`,
+  (n,q)=>`Aiyo ${n}, ${q>1?q+' fouls':'a foul'}! 💸`,
+  (n,q)=>`That’s ${q>1?q+' fouls':'a foul'} on ${n}. 🚨`,
+  (n,q)=>`${n} makes a donation to the foul pool! 💰`,
+  (n,q)=>`The foul pool says thanks, ${n}. 😬`,
+  (n,q)=>`Uh-oh! ${n} ${q>1?'recorded '+q+' fouls':'gets a foul'}. 🚨`,
+  (n,q)=>`${n} just gave the table a little extra. 💸`,
+  (n,q)=>`Red alert! ${n} ${q>1?'committed '+q+' fouls':'fouled'}. 🔴`
+ ],
+ manual:[
+  n=>`Score adjusted for ${n}. ✍️`,
+  n=>`A little bookkeeping for ${n}. 📒`,
+  n=>`${n} gets a scoreboard adjustment. 🧾`,
+  n=>`Numbers updated for ${n}. ✨`
+ ]
+};
+const announcementStyles={
+ bonus:{tag:'BONUS SCORED',icon:'✦'},
+ game:{tag:'GAME WON',icon:'★'},
+ foul:{tag:'FOUL ALERT',icon:'!'},
+ manual:{tag:'SCORE ADJUSTED',icon:'↔'}
+};
+let announcementQueue=[],announcementTimer=null,announcementActive=false;
+function clearAnnouncements(){
+ clearTimeout(announcementTimer);announcementTimer=null;announcementQueue=[];announcementActive=false;
+ const el=$('scoreAnnouncement');if(el){el.hidden=true;el.classList.remove('announceIn','announceOut');}
+}
+function eventPhrase(e){
+ const lines=announcementLines[e?.kind];if(!lines)return null;
+ const id=eventIdentity(e);let hash=2166136261;
+ for(let i=0;i<id.length;i++)hash=Math.imul(hash^id.charCodeAt(i),16777619);
+ const text=lines[(hash>>>0)%lines.length](name(e.actor),Math.max(1,Number(e.quantity)||1));
+ return {kind:e.kind,text};
+}
+function showNextAnnouncement(){
+ if(!$('appShell')||$('appShell').hidden){clearAnnouncements();return;}
+ // Native dialogs render in a browser top-layer, above any z-index. Wait until
+ // scoring forms close so a successful local score never gets a hidden banner.
+ if(document.querySelector('dialog[open]')){
+  announcementActive=true;
+  announcementTimer=setTimeout(()=>{announcementActive=false;showNextAnnouncement();},160);
+  return;
+ }
+ const info=announcementQueue.shift();if(!info){announcementActive=false;return;}
+ announcementActive=true;
+ const el=$('scoreAnnouncement'),style=announcementStyles[info.kind];
+ el.dataset.kind=info.kind;
+ $('announceIcon').textContent=style.icon;
+ $('announceTag').textContent=style.tag;
+ $('announceText').textContent=info.text; // never render player names as HTML
+ el.hidden=false;el.classList.remove('announceOut','announceIn');
+ void el.offsetWidth;el.classList.add('announceIn');
+ announcementTimer=setTimeout(()=>{
+  el.classList.remove('announceIn');el.classList.add('announceOut');
+  announcementTimer=setTimeout(()=>{el.hidden=true;el.classList.remove('announceOut');showNextAnnouncement();},230);
+ },3300);
+}
+function queueAnnouncements(events){
+ if($('appShell').hidden)return;
+ // Cap backlogs (e.g. when a device reconnects) to avoid minutes of notifications.
+ for(const e of events.slice(-4)){
+  const info=eventPhrase(e);if(info)announcementQueue.push(info);
+ }
+ if(announcementQueue.length>4)announcementQueue=announcementQueue.slice(-4);
+ if(!announcementActive&&announcementQueue.length)showNextAnnouncement();
+}
 function applyLiveSnapshot(code,raw){
  const events=Array.isArray(raw?.events)?raw.events:Object.values(raw?.events||{});
  const incoming=new Set(events.map(eventIdentity));
  if(activityRoomCode!==code)resetActivityWatch(code);
- const hasNew=activityBaselineReady&&events.some((e,i)=>!activitySeen.has(eventIdentity(e,i)));
+ // First snapshot is existing history. Only newly appended event IDs get an alert.
+ const newEvents=activityBaselineReady?events.filter((e,i)=>!activitySeen.has(eventIdentity(e,i))):[];
  activitySeen=incoming;activityBaselineReady=true;
  const selection=state.selected;
  state=normalise(raw);
  state.selected=state.players.some(p=>p.id===selection)?selection:state.players[0].id;
  render();
- if(hasNew)pulseActivity();
+ if(newEvents.length){pulseActivity();queueAnnouncements(newEvents);}
 }
 async function joinLiveRoom(code,initial){const fb=await ensureFirebase();if(session.unsubscribe){session.unsubscribe();session.unsubscribe=null}if(session.unsubConnection){session.unsubConnection();session.unsubConnection=null}
  startRoom('live',code,initial);
@@ -213,6 +311,7 @@ function renderSavedRooms(){
  }).join(''):`<div class="empty">${q?'No matching sessions.':'No saved sessions yet. Create one or join with a room code.'}</div>`;
 }
 function showSessions(){
+ clearAnnouncements();
  $('appShell').hidden=true;$('sessionsScreen').hidden=false;window.scrollTo(0,0);
  $('sessionSearch').value='';renderSavedRooms();refreshSavedRoomDetails();
  const url=new URL(location.href);url.searchParams.delete('room');
@@ -417,6 +516,6 @@ function showSettlement(){const t=totals(),transfers=netTransfers(t.gameBalances
 $('settlementBtn').onclick=showSettlement;
 $('copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(settlementSummary());notify('Settlement copied')}catch(e){notify('Clipboard unavailable; use CSV export')}};
 const csv=value=>'"'+String(value??'').replaceAll('"','""')+'"';
-$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(valuedEvent(e).deltas).filter(([id,v])=>v<0).map(([id,v])=>`${name(id)}: ${-v}`).join('; '):(e.payers||[]).map(name).join('; '),valuedEvent(e).amount,e.quantity||0,valuedEvent(e).poolDelta,e.reason||'']),[],['PLAYER','GAME + BONUS NET SGD','TABLE FEE CONTRIBUTION SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],-t.foulBalances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v094-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
+$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(valuedEvent(e).deltas).filter(([id,v])=>v<0).map(([id,v])=>`${name(id)}: ${-v}`).join('; '):(e.payers||[]).map(name).join('; '),valuedEvent(e).amount,e.quantity||0,valuedEvent(e).poolDelta,e.reason||'']),[],['PLAYER','GAME + BONUS NET SGD','TABLE FEE CONTRIBUTION SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],-t.foulBalances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v095-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 setupLanding();
