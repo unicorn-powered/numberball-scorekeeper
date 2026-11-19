@@ -12,7 +12,7 @@ const roomAlphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function generateId(){const a=new Uint32Array(3);crypto.getRandomValues(a);return Date.now().toString(36)+'-'+Array.from(a,v=>v.toString(36)).join('');}
 function generateRoomCode(){const bytes=new Uint32Array(6);crypto.getRandomValues(bytes);return Array.from(bytes,x=>roomAlphabet[x%roomAlphabet.length]).join('');}
 function normalise(raw){const v=raw||{}, players=Array.isArray(v.players)?v.players:Object.values(v.players||{}),events=Array.isArray(v.events)?v.events:Object.values(v.events||{}),rates=v.rates||{};
- return {players:players.length>=2&&players.length<=4?players:defaults().players,rates:{bonus:Number(rates.bonus??5),game:Number(rates.game??10),foul:Number(rates.foul??1)},events,revision:Number(v.revision||0),rateBackup:v.rateBackup||null,selected:state.selected};}
+ return {players:players.length>=2&&players.length<=4?players:defaults().players,rates:{bonus:Number(rates.bonus??1),game:Number(rates.game??2),foul:Number(rates.foul??1)},events,revision:Number(v.revision||0),rateBackup:v.rateBackup||null,selected:state.selected};}
 function roomPayload(draft){return {players:draft.players,rates:draft.rates,events:draft.events,revision:draft.revision,...(draft.rateBackup?{rateBackup:draft.rateBackup}:{})};}
 function setBusy(busy,text=''){
  ['createBtn','joinBtn'].forEach(id=>{const el=$(id);if(el)el.disabled=busy});
@@ -37,7 +37,7 @@ function populateNewNames(){
 }
 function openCreateDialog(){
  $('newPlayerCount').value='4';$('newNameFields').innerHTML='';populateNewNames();
- $('newBonusRate').value='5';$('newGameRate').value='10';$('newFoulRate').value='1';
+ $('newBonusRate').value='1';$('newGameRate').value='2';$('newFoulRate').value='1';
  $('createError').hidden=true;$('createSessionDialog').showModal();
 }
 function openJoinDialog(code=''){
@@ -206,7 +206,7 @@ const LAST_ROOM_KEY='sg_numberball_v05_recent_room';
 const SAVED_ROOMS_KEY='sg_numberball_v071_saved_rooms';
 const $=id=>document.getElementById(id);
 const defaultNames=['Player 1','Player 2','Player 3','Player 4'];
-const defaults=(count=4)=>({players:defaultNames.slice(0,count).map((name,i)=>({id:'p'+(i+1),name})),rates:{bonus:5,game:10,foul:1},selected:'p1',events:[],revision:0});
+const defaults=(count=4)=>({players:defaultNames.slice(0,count).map((name,i)=>({id:'p'+(i+1),name})),rates:{bonus:1,game:2,foul:1},selected:'p1',events:[],revision:0});
 let state=defaults();
 const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=n=>(n<0?'−':'')+Math.abs(n).toLocaleString('en-SG',{maximumFractionDigits:0});
