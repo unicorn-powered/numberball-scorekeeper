@@ -21,6 +21,7 @@ function setBusy(busy,text=''){
 function showWelcome(){showSessions()}
 function startRoom(mode,code,initialState){
  session.mode=mode;session.code=code;session.connected=false;session.dataReady=false;
+ resetActivityWatch(code);
  state=normalise(initialState);
  state.selected=localStorage.getItem('sg_nb_selection_'+code)||state.players[0].id;
  $('sessionsScreen').hidden=true;$('appShell').hidden=false;window.scrollTo(0,0);
@@ -109,13 +110,45 @@ async function joinFromInput(raw){
  }catch(e){if(!$('joinSessionDialog').open)openJoinDialog(code);$('joinError').textContent=firebaseError(e);$('joinError').hidden=false;notify('Could not join room');console.warn(e)}
  finally{setBusy(false)}
 }
+// Compare event histories per active room. We deliberately ignore the first live
+// snapshot, which is initial data rather than a newly recorded action.
+let activityRoomCode=null, activityBaselineReady=false, activitySeen=new Set();
+function eventIdentity(event,index){
+ return typeof event?.id==='string'&&event.id?event.id:'legacy:'+index+':'+JSON.stringify(event);
+}
+function resetActivityWatch(code){
+ activityRoomCode=code;activityBaselineReady=false;activitySeen.clear();
+ const panel=$('activityPanel');panel?.classList.remove('activity-pulse');
+ clearTimeout(pulseActivity.timeout);
+}
+function pulseActivity(){
+ if($('appShell').hidden)return;
+ const panel=$('activityPanel');
+ panel.classList.remove('activity-pulse');
+ void panel.offsetWidth; // Restart the animation on back-to-back results.
+ panel.classList.add('activity-pulse');
+ clearTimeout(pulseActivity.timeout);
+ pulseActivity.timeout=setTimeout(()=>panel.classList.remove('activity-pulse'),1100);
+}
+function applyLiveSnapshot(code,raw){
+ const events=Array.isArray(raw?.events)?raw.events:Object.values(raw?.events||{});
+ const incoming=new Set(events.map(eventIdentity));
+ if(activityRoomCode!==code)resetActivityWatch(code);
+ const hasNew=activityBaselineReady&&events.some((e,i)=>!activitySeen.has(eventIdentity(e,i)));
+ activitySeen=incoming;activityBaselineReady=true;
+ const selection=state.selected;
+ state=normalise(raw);
+ state.selected=state.players.some(p=>p.id===selection)?selection:state.players[0].id;
+ render();
+ if(hasNew)pulseActivity();
+}
 async function joinLiveRoom(code,initial){const fb=await ensureFirebase();if(session.unsubscribe){session.unsubscribe();session.unsubscribe=null}if(session.unsubConnection){session.unsubConnection();session.unsubConnection=null}
  startRoom('live',code,initial);
  session.unsubscribe=fb.dbAPI.onValue(fb.dbAPI.ref(fb.db,'rooms/'+code+'/data'),snap=>{
  if(session.mode!=='live'||session.code!==code)return;
  if(!snap.exists()){session.dataReady=false;setConnectionStatus('missing');return;}
  session.dataReady=true;setConnectionStatus();rememberRoom(code,snap.val(),false);
- const selection=state.selected;state=normalise(snap.val());state.selected=state.players.some(p=>p.id===selection)?selection:state.players[0].id;render();
+ applyLiveSnapshot(code,snap.val());
  },err=>{session.dataReady=false;setConnectionStatus('error');notify('Sync error: '+firebaseError(err))});
  session.unsubConnection=fb.dbAPI.onValue(fb.dbAPI.ref(fb.db,'.info/connected'),snap=>{
  if(session.mode!=='live'||session.code!==code)return;session.connected=!!snap.val();setConnectionStatus();
@@ -268,10 +301,20 @@ function netTransfers(balances){
  return lines;
 }
 async function record(event){event.time=new Date().toISOString();event.id=generateId();event.writer=session.uid||'offline';return commit(draft=>{if(!draft.players.some(p=>p.id===event.actor)||Object.keys(event.deltas||{}).length!==draft.players.length||!Object.keys(event.deltas||{}).every(id=>draft.players.some(p=>p.id===id)))return false;if(['bonus','game','foul'].includes(event.kind)&&draft.rates[event.kind]!==event.rate)return false;const item={...event,calculationVersion:2,gameNo:1+draft.events.filter(e=>e.kind==='game').length};draft.events.push(item);});}
+function renderStats(t=totals()){
+ const sums={bonuses:0,games:0,fouls:0};
+ $('statsRows').innerHTML=state.players.map(p=>{
+  const bonus=t.bonuses[p.id]||0,game=t.games[p.id]||0,foul=t.fouls[p.id]||0;
+  sums.bonuses+=bonus;sums.games+=game;sums.fouls+=foul;
+  return `<tr><td><span class="statsName" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span></td><td>${bonus}</td><td>${game}</td><td>${foul}</td></tr>`;
+ }).join('');
+ $('statsTotals').innerHTML=`<td><span class="statsName">Total</span></td><td>${sums.bonuses}</td><td>${sums.games}</td><td>${sums.fouls}</td>`;
+}
+$('statsBtn').onclick=()=>{renderStats();$('statsDialog').showModal()};
 function render(){
  if(!state.players.some(p=>p.id===state.selected))state.selected=state.players[0].id;
  $('scoreBonusRate').textContent=fmt(state.rates.bonus);$('scoreGameRate').textContent=fmt(state.rates.game);$('scoreFoulRate').textContent=fmt(state.rates.foul);
- const t=totals();$('gameNo').textContent=String(gameNo()).padStart(2,'0');$('poolStat').textContent=fmt(t.pool);$('undoBtn').disabled=!state.events.length;$('selectedBadge').textContent=name(state.selected);
+ const t=totals();if($('statsDialog').open)renderStats(t);$('gameNo').textContent=String(gameNo()).padStart(2,'0');$('poolStat').textContent=fmt(t.pool);$('undoBtn').disabled=!state.events.length;$('selectedBadge').textContent=name(state.selected);
  $('players').innerHTML=state.players.map(p=>`<button type="button" class="player ${p.id===state.selected?'active':''}" data-player="${escapeHtml(p.id)}" aria-pressed="${p.id===state.selected}"><div class="phead"><span class="avatar">${escapeHtml(p.name[0]?.toUpperCase()||'P')}</span><span class="indicator">${p.id===state.selected?'● ACTIVE':'TAP TO SELECT'}</span></div><div class="pname">${escapeHtml(p.name)}</div><div class="pscores"><span class="pvalue ${t.gameBalances[p.id]>0?'plus':t.gameBalances[p.id]<0?'minus':''}">${signed(t.gameBalances[p.id])}</span><span class="pfoul" title="Separate foul-pool contribution">(${signed(t.foulBalances[p.id])})</span></div><div class="pfoot"><span>★ ${t.games[p.id]} games</span><span>! ${t.fouls[p.id]} fouls</span></div></button>`).join('');
  $('players').querySelectorAll('[data-player]').forEach(b=>b.onclick=()=>{state.selected=b.dataset.player;save();render()});
  
@@ -329,6 +372,6 @@ function showSettlement(){const t=totals(),transfers=netTransfers(t.gameBalances
 $('settlementBtn').onclick=showSettlement;
 $('copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(settlementSummary());notify('Settlement copied')}catch(e){notify('Clipboard unavailable; use CSV export')}};
 const csv=value=>'"'+String(value??'').replaceAll('"','""')+'"';
-$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(valuedEvent(e).deltas).filter(([id,v])=>v<0).map(([id,v])=>`${name(id)}: ${-v}`).join('; '):(e.payers||[]).map(name).join('; '),valuedEvent(e).amount,e.quantity||0,valuedEvent(e).poolDelta,e.reason||'']),[],['PLAYER','GAME + BONUS NET SGD','TABLE FEE CONTRIBUTION SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],-t.foulBalances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v090-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
+$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(valuedEvent(e).deltas).filter(([id,v])=>v<0).map(([id,v])=>`${name(id)}: ${-v}`).join('; '):(e.payers||[]).map(name).join('; '),valuedEvent(e).amount,e.quantity||0,valuedEvent(e).poolDelta,e.reason||'']),[],['PLAYER','GAME + BONUS NET SGD','TABLE FEE CONTRIBUTION SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],-t.foulBalances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v092-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 setupLanding();
