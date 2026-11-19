@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101318">
-<title>Number Ball — Live Scorekeeper v0.9.5</title>
+<title>Number Ball — Live Scorekeeper v0.9.6</title>
 <style>
 :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;--bg:#101318;--panel:#1b2028;--panel2:#232a34;--line:#333c4a;--text:#f1f4fa;--dim:#a4afbf;--gold:#dfb978;--green:#65d9a5;--red:#f58e9a}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 35% -9%,#1c2636,transparent 58%),var(--bg);color:var(--text);min-height:100vh;padding:24px 16px 70px}button,input,select{font:inherit}button{border:0;color:inherit;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-offset:3px}.wrap{max-width:1100px;margin:0 auto}
@@ -255,7 +255,7 @@ body{background:#101318}
  .ratesGrid .stepper{gap:2px}
 }
 
-/* V0.9.5 — true-black neon palette. Visual-only overrides. */
+/* V0.9.6 — true-black neon palette. Visual-only overrides. */
 :root{color-scheme:dark;--bg:#050609;--panel:#0d1016;--panel2:#151a23;--line:#27303b;--text:#f4f8ff;--dim:#94a4b8;--gold:#a1f94b;--green:#49f5bb;--red:#ff5c98}
 body,body:has(.sessionsScreen:not([hidden])){background:radial-gradient(ellipse 85% 40% at 50% -16%,#10252c 0%,#050609 78%) fixed;color:var(--text)}
 .ball{background:radial-gradient(circle at 30% 25%,#d5ff8d,#92ed3d 58%,#367d35);color:#071009;border:1px solid #c5ff8a;box-shadow:0 0 22px #a1f94b2c}
@@ -301,12 +301,12 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 /* Current session rates — compact, read-only and live-updating */
 .rateStrip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:9px 0 4px}
 .rateStrip>span{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;padding:9px 12px;background:#0d1016;border:1px solid #29313d;border-radius:10px;color:#94a4b8;font-size:12px;font-weight:650}
-.rateStrip strong{font-size:15px;font-weight:850;color:#49f5bb;font-variant-numeric:tabular-nums}
-.rateStrip>span:nth-child(2) strong{color:#ba93ff}
+.rateStrip strong{font-size:15px;font-weight:850;color:#ba93ff;font-variant-numeric:tabular-nums}
+.rateStrip>span:nth-child(2) strong{color:#49f5bb}
 .rateStrip>span:nth-child(3) strong{color:#ff69a4}
 @media(max-width:380px){.rateStrip{gap:5px}.rateStrip>span{padding:8px 7px;font-size:11px}.rateStrip strong{font-size:13px}}
 
-/* V0.9.5 — player statistics and new-event activity alert. */
+/* V0.9.6 — player statistics and new-event activity alert. */
 .statsButton{color:#bffef5;border-color:#27665d;background:#11231f}
 .statsButton:hover{background:#17352d}
 .statsDialog{width:min(590px,calc(100vw - 20px))}
@@ -318,8 +318,8 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 .playerStatsTable th{font-size:11px;color:#94a4b8;text-transform:uppercase;letter-spacing:.06em;font-weight:850}
 .playerStatsTable td{font-size:21px;font-weight:900}
 .playerStatsTable .statsName{display:block;font-size:13px;color:#f4f8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.playerStatsTable td:nth-child(2){color:#49f5bb}
-.playerStatsTable td:nth-child(3){color:#ba93ff}
+.playerStatsTable td:nth-child(2){color:#ba93ff}
+.playerStatsTable td:nth-child(3){color:#49f5bb}
 .playerStatsTable td:nth-child(4){color:#ff69a4}
 .playerStatsTable tfoot td{background:#101820;font-size:18px;border-bottom:0}
 .playerStatsTable tfoot .statsName{color:#c8d4e2;font-weight:850}
@@ -342,11 +342,11 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 }
 @media(prefers-reduced-motion:reduce){#activityPanel.activity-pulse{animation:none;border-color:#49f5bb}}
 
-/* V0.9.5 — prevent accidental Undo taps; secondary Cancel stays the safe option. */
+/* V0.9.6 — prevent accidental Undo taps; secondary Cancel stays the safe option. */
 #confirmYes.undoConfirm{background:#ff5c98;border:1px solid #ff84b4;color:#1c0811;box-shadow:0 0 18px #ff5c981a}
 #confirmYes.undoConfirm:hover{background:#ff83b3}
 
-/* V0.9.5 — neon event announcements. Pinned above the score so mobile users see them. */
+/* V0.9.6 — neon event announcements. Pinned above the score so mobile users see them. */
 .scoreAnnouncement{--announce:#49f5bb;position:fixed;z-index:50;top:calc(13px + env(safe-area-inset-top,0px));left:50%;width:min(468px,calc(100vw - 20px));min-height:86px;padding:15px 19px;display:flex;align-items:center;gap:14px;border-radius:17px;border:1px solid var(--announce);background:linear-gradient(112deg,#111e22f5,#0b101af5 65%);color:#f5faff;box-shadow:0 10px 35px #000d,0 0 0 1px color-mix(in srgb,var(--announce) 27%,transparent),0 0 38px color-mix(in srgb,var(--announce) 24%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);pointer-events:none;transform:translate(-50%,-16px) scale(.96);opacity:0}
 .scoreAnnouncement[data-kind="game"]{--announce:#ba93ff;background:linear-gradient(110deg,#1b1427f7,#0b101af5 70%)}
 .scoreAnnouncement[data-kind="foul"]{--announce:#ff69a4;background:linear-gradient(110deg,#25121cf7,#0b101af5 70%)}
@@ -366,7 +366,7 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 </head>
 <body>
 <section class="wrap sessionsScreen" id="sessionsScreen" aria-label="Number Ball home">
-  <div class="homeBrand"><div class="ball" aria-hidden="true">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.9.5</div><h1>NUMBER BALL</h1><p class="muted">Your table. Your scoreboard.</p></div></div>
+  <div class="homeBrand"><div class="ball" aria-hidden="true">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.9.6</div><h1>NUMBER BALL</h1><p class="muted">Your table. Your scoreboard.</p></div></div>
   <p id="welcomeSetup" class="welcomeNotice" hidden></p>
   <div class="libraryActions"><button class="primary" type="button" id="sessionNewBtn">＋ New session</button><button class="secondary" type="button" id="sessionJoinBtn">↗ Join by code</button></div>
   <div class="listHeading"><h2>Recent sessions</h2><span class="small" id="sessionListStatus" role="status"></span></div>
@@ -376,15 +376,15 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 </section>
 <div class="wrap" id="appShell" hidden>
 <div class="scoreTopbar"><button type="button" class="backHome" id="leaveBtn">← Sessions</button><div class="scoreTopActions"><button type="button" class="headbtn statsButton" id="statsBtn" aria-haspopup="dialog" aria-controls="statsDialog">▥ Stats</button><button type="button" class="headbtn iconSettings" id="settingsBtn" aria-label="Session settings">⚙ Settings</button><button type="button" class="headbtn highlight" id="settlementBtn">▤ Settlement</button></div></div>
-<header class="header slimHeader"><div class="identity"><div class="ball">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.9.5</div><h1>NUMBER BALL</h1></div></div></header>
+<header class="header slimHeader"><div class="identity"><div class="ball">15</div><div><div class="eyebrow">LIVE SCOREKEEPER · V0.9.6</div><h1>NUMBER BALL</h1></div></div></header>
 <div class="roomLine"><div class="roomInfo"><button id="roomCode" class="roomCode" type="button" title="Tap to copy room code">—</button><span class="roomStatus" id="connectionStatus" role="status">Connecting…</span></div><button class="shareIcon" id="shareBtn" type="button" title="Share room link" aria-label="Share room link">↗ Share</button></div>
 <div class="miniStats"><div class="miniStat"><span>Game</span><strong id="gameNo">01</strong></div><div class="miniStat"><span>Foul pool</span><strong class="poolText" id="poolStat">0</strong></div></div>
-<div class="rateStrip" aria-label="Current payout rates"><span>Bonus <strong id="scoreBonusRate">$1</strong></span><span>Game <strong id="scoreGameRate">$2</strong></span><span>Foul <strong id="scoreFoulRate">$1</strong></span></div>
+<div class="rateStrip" aria-label="Current payout rates"><span>Game <strong id="scoreGameRate">$2</strong></span><span>Bonus <strong id="scoreBonusRate">$1</strong></span><span>Foul <strong id="scoreFoulRate">$1</strong></span></div>
 <div class="sectionhead"><h2>Players</h2><span class="small">Tap to select</span></div>
 <section class="players" id="players" aria-label="Choose player"></section>
 <section class="main"><div class="stack">
 <section class="panel" id="quickScoringPanel"><div class="panelhead"><div><h2>Quick score</h2><p class="muted">Select a player, then choose an action.</p></div><span class="pill" id="selectedBadge">Player 1</span></div>
-<div class="actions"><button class="act" id="bonusBtn"><span class="symbol">＋</span><span><b>Bonus</b><small id="bonusActionHint">All / Bao</small></span></button><button class="act game" id="gameBtn"><span class="symbol">★</span><span><b>Game win</b><small id="gameActionHint">All / Bao</small></span></button><button class="act foul" id="foulBtn"><span class="symbol">!</span><span><b>Foul</b><small>Record count</small></span></button></div>
+<div class="actions"><button class="act game" id="gameBtn"><span class="symbol">★</span><span><b>Game win</b><small id="gameActionHint">All / Bao</small></span></button><button class="act" id="bonusBtn"><span class="symbol">＋</span><span><b>Bonus</b><small id="bonusActionHint">All / Bao</small></span></button><button class="act foul" id="foulBtn"><span class="symbol">!</span><span><b>Foul</b><small>Record count</small></span></button></div>
 <div class="toolbar"><button class="secondary" id="adjustBtn">↔ Adjust</button><button class="secondary" id="undoBtn">↶ Undo</button></div></section>
 
 </div><div class="stack"><section class="panel" id="activityPanel"><div class="panelhead"><div><h2>Activity</h2><p class="muted">Latest results</p></div></div><div id="history"></div></section></div></section>
@@ -403,8 +403,8 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
   <label class="field" for="newPlayerCount">Players</label><select id="newPlayerCount" required><option value="2" selected>2 players</option><option value="3">3 players</option><option value="4">4 players</option></select>
   <div id="newNameFields" class="newNameGrid"></div>
   <div class="formSection"><div class="formSectionTitle">Session rates <span class="small">Whole numbers only</span></div><div class="ratesGrid">
-  <div><label class="field" for="newBonusRate">Bonus</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="newBonusRate" data-step="-1">−</button><input id="newBonusRate" type="number" inputmode="numeric" min="0" max="10000" step="1" value="1" required><button class="stepbtn" type="button" data-step-target="newBonusRate" data-step="1">+</button></div></div>
   <div><label class="field" for="newGameRate">Game</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="newGameRate" data-step="-1">−</button><input id="newGameRate" type="number" inputmode="numeric" min="0" max="10000" step="1" value="2" required><button class="stepbtn" type="button" data-step-target="newGameRate" data-step="1">+</button></div></div>
+  <div><label class="field" for="newBonusRate">Bonus</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="newBonusRate" data-step="-1">−</button><input id="newBonusRate" type="number" inputmode="numeric" min="0" max="10000" step="1" value="1" required><button class="stepbtn" type="button" data-step-target="newBonusRate" data-step="1">+</button></div></div>
   <div><label class="field" for="newFoulRate">Foul</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="newFoulRate" data-step="-1">−</button><input id="newFoulRate" type="number" inputmode="numeric" min="0" max="10000" step="1" value="1" required><button class="stepbtn" type="button" data-step-target="newFoulRate" data-step="1">+</button></div></div>
   </div></div>
   <p class="formError" id="createError" role="alert" hidden></p><div class="modalbtns"><button class="secondary" type="button" data-close="createSessionDialog">Cancel</button><button class="primary" id="createBtn" type="submit">Create room</button></div>
@@ -423,10 +423,10 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 <label class="field" for="foulQty">Number of fouls</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="foulQty" data-step="-1">−</button><input id="foulQty" type="number" inputmode="numeric" min="1" max="50" step="1" value="1" required><button class="stepbtn" type="button" data-step-target="foulQty" data-step="1">+</button></div><div class="notice" id="foulPreview"></div><div class="modalbtns"><button class="secondary" type="button" data-close="foulDialog">Cancel</button><button class="primary" type="submit">Record foul</button></div></form></dialog>
 <dialog id="statsDialog" class="statsDialog" aria-labelledby="statsTitle"><div class="modalhead"><div><div class="eyebrow">LIVE SESSION</div><h2 id="statsTitle">Player stats</h2></div><button type="button" class="close" data-close="statsDialog" aria-label="Close player stats">✕</button></div>
 <p class="muted statsHint">Bonus and Game count wins. Fouls count individual fouls, including multiple recorded together. Updates automatically while open.</p>
-<div class="statsTableWrap"><table class="playerStatsTable"><thead><tr><th scope="col">Player</th><th scope="col">Bonus</th><th scope="col">Game</th><th scope="col">Foul</th></tr></thead><tbody id="statsRows"></tbody><tfoot><tr id="statsTotals"></tr></tfoot></table></div>
+<div class="statsTableWrap"><table class="playerStatsTable"><thead><tr><th scope="col">Player</th><th scope="col">Game</th><th scope="col">Bonus</th><th scope="col">Foul</th></tr></thead><tbody id="statsRows"></tbody><tfoot><tr id="statsTotals"></tr></tfoot></table></div>
 <div class="modalbtns"><button class="primary" type="button" data-close="statsDialog">Done</button></div></dialog>
 <dialog id="settingsDialog"><form id="settingsForm"><div class="modalhead"><h2>Session settings</h2><button type="button" class="close" data-close="settingsDialog" aria-label="Close">✕</button></div><label class="field" for="playerCount">Number of players</label><select id="playerCount"><option value="2">2 players</option><option value="3">3 players</option><option value="4">4 players</option></select>
-<div class="two"><div><label class="field" for="bonusRate">Bonus rate</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="bonusRate" data-step="-1">−</button><input id="bonusRate" type="number" inputmode="numeric" min="0" max="10000" step="1" required><button class="stepbtn" type="button" data-step-target="bonusRate" data-step="1">+</button></div></div><div><label class="field" for="gameRate">Game rate</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="gameRate" data-step="-1">−</button><input id="gameRate" type="number" inputmode="numeric" min="0" max="10000" step="1" required><button class="stepbtn" type="button" data-step-target="gameRate" data-step="1">+</button></div></div></div>
+<div class="two"><div><label class="field" for="gameRate">Game rate</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="gameRate" data-step="-1">−</button><input id="gameRate" type="number" inputmode="numeric" min="0" max="10000" step="1" required><button class="stepbtn" type="button" data-step-target="gameRate" data-step="1">+</button></div></div><div><label class="field" for="bonusRate">Bonus rate</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="bonusRate" data-step="-1">−</button><input id="bonusRate" type="number" inputmode="numeric" min="0" max="10000" step="1" required><button class="stepbtn" type="button" data-step-target="bonusRate" data-step="1">+</button></div></div></div>
 <label class="field" for="foulRate">Foul rate</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="foulRate" data-step="-1">−</button><input id="foulRate" type="number" inputmode="numeric" min="0" max="10000" step="1" required><button class="stepbtn" type="button" data-step-target="foulRate" data-step="1">+</button></div>
 <div id="nameFields"></div><div class="notice">Whole numbers only. Changing the player count resets results after confirmation. Editing rates recalculates all recorded results. Manual adjustments stay fixed.</div><div class="modalbtns"><button class="secondary" type="button" data-close="settingsDialog">Cancel</button><button class="primary" type="submit">Save settings</button></div></form><div class="settingsDanger"><span class="small">Reset results for this room</span><button type="button" id="resetBtn" class="dangerText">Reset session</button></div></dialog>
 <dialog id="manualDialog"><form id="manualForm"><div class="modalhead"><h2>Adjustment</h2><button type="button" class="close" data-close="manualDialog" aria-label="Close">✕</button></div><div class="two"><div><label class="field" for="manualFrom">From</label><select id="manualFrom"></select></div><div><label class="field" for="manualTo">To</label><select id="manualTo"></select></div></div><label class="field" for="manualAmount">Value</label><div class="stepper"><button class="stepbtn" type="button" data-step-target="manualAmount" data-step="-1">−</button><input id="manualAmount" type="number" inputmode="numeric" min="1" max="10000" step="1" required value="5"><button class="stepbtn" type="button" data-step-target="manualAmount" data-step="1">+</button></div><label class="field" for="manualReason">Note (optional)</label><input id="manualReason" maxlength="70" placeholder="Optional"><div class="modalbtns"><button class="secondary" type="button" data-close="manualDialog">Cancel</button><button class="primary" type="submit">Record adjustment</button></div></form></dialog>
@@ -434,6 +434,6 @@ dialog::backdrop{background:#000d;backdrop-filter:blur(5px)}
 <dialog id="settlementDialog"><div class="modalhead"><h2>Session settlement</h2><button type="button" class="close" data-close="settlementDialog" aria-label="Close">✕</button></div><p class="settlelead">This is the private breakdown. Close to return to the clean scoreboard.</p><div class="settlestats"><div class="settlebox"><span>Game & bonus movement</span><strong id="settleMovement">$0</strong></div><div class="settlebox"><span>Reserved for table fees</span><strong id="settlePool">$0</strong></div></div><section class="settlesection"><h3>Who pays whom</h3><div id="settleLines"></div></section><section class="settlesection"><h3>Foul pool · Table fees</h3><div id="settleFouls"></div></section><div class="notice">Game and bonus balances are netted between players. Foul contributions are separate and reserved for table fees, not paid to a player.</div><div class="settletools"><button class="secondary" type="button" id="copyBtn">Copy settlement</button><button class="secondary" type="button" id="exportBtn">Export CSV</button></div><div class="modalbtns"><button class="primary" type="button" data-close="settlementDialog">Done</button></div></dialog>
 
 <script src="./firebase-config.js"></script>
-<script src="./app.js?v=0.9.5" defer></script>
+<script src="./app.js?v=0.9.6" defer></script>
 </body>
 </html>
