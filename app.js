@@ -12,8 +12,8 @@ const roomAlphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function generateId(){const a=new Uint32Array(3);crypto.getRandomValues(a);return Date.now().toString(36)+'-'+Array.from(a,v=>v.toString(36)).join('');}
 function generateRoomCode(){const bytes=new Uint32Array(6);crypto.getRandomValues(bytes);return Array.from(bytes,x=>roomAlphabet[x%roomAlphabet.length]).join('');}
 function normalise(raw){const v=raw||{}, players=Array.isArray(v.players)?v.players:Object.values(v.players||{}),events=Array.isArray(v.events)?v.events:Object.values(v.events||{}),rates=v.rates||{};
- return {players:players.length>=2&&players.length<=4?players:defaults().players,rates:{bonus:Number(rates.bonus??5),game:Number(rates.game??10),foul:Number(rates.foul??1)},events,revision:Number(v.revision||0),selected:state.selected};}
-function roomPayload(draft){return {players:draft.players,rates:draft.rates,events:draft.events,revision:draft.revision};}
+ return {players:players.length>=2&&players.length<=4?players:defaults().players,rates:{bonus:Number(rates.bonus??5),game:Number(rates.game??10),foul:Number(rates.foul??1)},events,revision:Number(v.revision||0),rateBackup:v.rateBackup||null,selected:state.selected};}
+function roomPayload(draft){return {players:draft.players,rates:draft.rates,events:draft.events,revision:draft.revision,...(draft.rateBackup?{rateBackup:draft.rateBackup}:{})};}
 function setBusy(busy,text=''){
  ['createBtn','joinBtn'].forEach(id=>{const el=$(id);if(el)el.disabled=busy});
  if(text){const err=$('createError');if(!$('createSessionDialog').open){$('joinError').textContent=text;$('joinError').hidden=false}else{err.textContent=text;err.hidden=false}}
@@ -218,23 +218,43 @@ const validInt=(n,min=0,max=10000)=>Number.isSafeInteger(n)&&n>=min&&n<=max;
 const zero=()=>Object.fromEntries(state.players.map(p=>[p.id,0]));
 const save=()=>{if(session.mode==='live'&&session.code){try{localStorage.setItem('sg_nb_selection_'+session.code,state.selected)}catch(e){console.warn(e)}}};
 function notify(msg){let el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(notify.timeout);notify.timeout=setTimeout(()=>el.classList.remove('show'),2300)}
+// Rate-based ledger. Legacy events with incomplete evidence retain their original value.
+function valuedEvent(e,rates=state.rates,players=state.players){
+ const ids=players.map(p=>p.id),old=e.deltas||{};
+ if(e.kind==='foul'){
+  const qty=Number(e.quantity);
+  if(Number.isSafeInteger(qty)&&qty>=0)return {amount:qty*rates.foul,poolDelta:qty*rates.foul,recalculated:true,deltas:{}};
+  return {amount:Number(e.poolDelta??e.amount??0),poolDelta:Number(e.poolDelta??e.amount??0),recalculated:false,deltas:{}};
+ }
+ if(e.kind==='bonus'||e.kind==='game'){
+  const payers=Array.isArray(e.payers)?e.payers:[];
+  const opponents=ids.filter(id=>id!==e.actor);
+  const valid=ids.includes(e.actor)&&payers.length>0&&new Set(payers).size===payers.length&&payers.every(id=>opponents.includes(id));
+  // All = exactly every opponent, Bao = exactly one opponent.
+  const isAll=valid&&payers.length===opponents.length;
+  const isBao=valid&&payers.length===1;
+  if((isAll||isBao)&&Number.isFinite(Number(e.rate))){
+   const rate=rates[e.kind],total=rate*opponents.length,deltas=Object.fromEntries(ids.map(id=>[id,0]));
+   deltas[e.actor]=total;
+   if(isAll)opponents.forEach(id=>deltas[id]-=rate);
+   else deltas[payers[0]]-=total;
+   return {amount:total,poolDelta:0,recalculated:true,deltas};
+  }
+ }
+ return {amount:Number(e.total??e.amount??0),poolDelta:Number(e.poolDelta||0),recalculated:false,deltas:old};
+}
 function totals(){
- // Two independent ledgers: player scores (bonus/game/adjustments) and
- // table-fee contributions (fouls). Never deduct fouls from player scores.
- // Historical rooms may contain foul events with negative deltas from v0.5/v0.6;
- // ignore those deltas so old sessions also display the corrected scores.
  const balances=zero(),gameBalances=zero(),foulBalances=zero(),fouls=zero(),bonuses=zero(),games=zero();let pool=0;
  for(const e of state.events){
-   if(e.kind!=='foul'){
-     for(const [id,delta] of Object.entries(e.deltas||{})){
-       if(Object.hasOwn(balances,id)){balances[id]+=delta;gameBalances[id]+=delta;}
-     }
+   const value=valuedEvent(e);
+   if(e.kind!=='foul')for(const [id,delta] of Object.entries(value.deltas)){
+     if(Object.hasOwn(gameBalances,id)){balances[id]+=Number(delta)||0;gameBalances[id]+=Number(delta)||0;}
    }
    if(e.kind==='foul'&&Object.hasOwn(fouls,e.actor)){
-     fouls[e.actor]+=(e.quantity||0);
-     foulBalances[e.actor]-=Number(e.poolDelta??e.amount??((e.quantity||0)*(e.rate||0)));
+     fouls[e.actor]+=Number(e.quantity)||0;
+     foulBalances[e.actor]-=value.poolDelta;
    }
-   pool+=Number(e.poolDelta||0);
+   pool+=value.poolDelta;
    if(e.kind==='bonus'&&Object.hasOwn(bonuses,e.actor))bonuses[e.actor]++;
    if(e.kind==='game'&&Object.hasOwn(games,e.actor))games[e.actor]++;
  }
@@ -247,7 +267,7 @@ function netTransfers(balances){
  while(i<debt.length&&j<credit.length){const amount=Math.min(debt[i].amount,credit[j].amount);if(amount>0)lines.push({from:debt[i].id,to:credit[j].id,amount});debt[i].amount-=amount;credit[j].amount-=amount;if(!debt[i].amount)i++;if(!credit[j].amount)j++;}
  return lines;
 }
-async function record(event){event.time=new Date().toISOString();event.id=generateId();event.writer=session.uid||'offline';return commit(draft=>{if(!draft.players.some(p=>p.id===event.actor)||Object.keys(event.deltas||{}).length!==draft.players.length||!Object.keys(event.deltas||{}).every(id=>draft.players.some(p=>p.id===id)))return false;if(['bonus','game','foul'].includes(event.kind)&&draft.rates[event.kind]!==event.rate)return false;const item={...event,gameNo:1+draft.events.filter(e=>e.kind==='game').length};draft.events.push(item);});}
+async function record(event){event.time=new Date().toISOString();event.id=generateId();event.writer=session.uid||'offline';return commit(draft=>{if(!draft.players.some(p=>p.id===event.actor)||Object.keys(event.deltas||{}).length!==draft.players.length||!Object.keys(event.deltas||{}).every(id=>draft.players.some(p=>p.id===id)))return false;if(['bonus','game','foul'].includes(event.kind)&&draft.rates[event.kind]!==event.rate)return false;const item={...event,calculationVersion:2,gameNo:1+draft.events.filter(e=>e.kind==='game').length};draft.events.push(item);});}
 function render(){
  if(!state.players.some(p=>p.id===state.selected))state.selected=state.players[0].id;
  const t=totals();$('gameNo').textContent=String(gameNo()).padStart(2,'0');$('poolStat').textContent=fmt(t.pool);$('undoBtn').disabled=!state.events.length;$('selectedBadge').textContent=name(state.selected);
@@ -258,7 +278,7 @@ function render(){
  $('history').innerHTML=events.length?events.map(e=>{
    let kind=e.kind==='bonus'?'Bonus':e.kind==='game'?'Game win':e.kind==='foul'?'Foul ×'+e.quantity:'Adjustment';
    let desc=e.kind==='foul'?'Added to pool':e.kind==='manual'?`From ${escapeHtml(name(e.payers?.[0]))}`:e.payers?.length===state.players.length-1?'All players':`Bao · ${escapeHtml(name(e.payers?.[0]))}`;
-   let amount=e.kind==='foul'?e.amount:e.kind==='manual'?e.amount:e.total;
+   let amount=valuedEvent(e).amount;
    return `<div class="entry"><div><b>${escapeHtml(name(e.actor))} · ${kind}</b><small>Game ${e.gameNo} · ${new Date(e.time).toLocaleTimeString('en-SG',{hour:'2-digit',minute:'2-digit'})} · ${desc}</small></div><span class="value">${e.kind==='foul'?'−':'+'}${fmt(amount)}</span></div>`;
  }).join(''):'<div class="empty">No results recorded yet.</div>';
 }
@@ -288,8 +308,14 @@ function buildNames(count){$('nameFields').innerHTML=Array.from({length:count},(
 $('settingsBtn').onclick=()=>{$('playerCount').value=state.players.length;$('bonusRate').value=state.rates.bonus;$('gameRate').value=state.rates.game;$('foulRate').value=state.rates.foul;buildNames(state.players.length);$('settingsDialog').showModal()};$('playerCount').onchange=()=>buildNames(Number($('playerCount').value));
 function confirmAction(title,body,callback){$('confirmTitle').textContent=title;$('confirmText').textContent=body;$('confirmDialog').showModal();$('confirmYes').onclick=()=>{$('confirmDialog').close();callback()};}
 $('settingsForm').onsubmit=async e=>{e.preventDefault();const count=Number($('playerCount').value),rates={bonus:Number($('bonusRate').value),game:Number($('gameRate').value),foul:Number($('foulRate').value)};if(Object.values(rates).some(v=>!validInt(v))){notify('Use whole-number rates');return}const names=Array.from({length:count},(_,i)=>$('player_'+i).value.trim());if(names.some(x=>!x)||new Set(names.map(x=>x.toLowerCase())).size!==count){notify('Enter distinct player names');return}
- const apply=async()=>{if(await commit(draft=>{const old=draft.players;draft.players=names.map((name,i)=>({id:old[i]?.id||'p'+(i+1),name}));draft.rates=rates;if(count!==old.length)draft.events=[];})){$('settingsDialog').close();notify('Session updated')}};
- if(count!==state.players.length&&state.events.length)confirmAction('Change players?',`Changing the count clears all previous results, fouls and pool totals.`,apply);else apply();};
+ const apply=async()=>{if(await commit(draft=>{const old=draft.players;draft.players=names.map((name,i)=>({id:old[i]?.id||'p'+(i+1),name}));if(Object.keys(rates).some(k=>rates[k]!==draft.rates[k])&&draft.events.length&&!draft.rateBackup){draft.rateBackup={rates:{...draft.rates},events:JSON.parse(JSON.stringify(draft.events)),savedAt:new Date().toISOString()};}draft.rates=rates;if(count!==old.length)draft.events=[];})){$('settingsDialog').close();notify('Session updated')}};
+ if(count!==state.players.length&&state.events.length)confirmAction('Change players?',`Changing the count clears all previous results, fouls and pool totals.`,apply);
+ else if(state.events.length&&Object.keys(rates).some(k=>rates[k]!==state.rates[k])){
+  const changed=Object.keys(rates).filter(k=>rates[k]!==state.rates[k]).map(k=>`${k}: $${state.rates[k]} → $${rates[k]}`).join(' · ');
+  const affected=state.events.filter(e=>['bonus','game','foul'].includes(e.kind)&&rates[e.kind]!==state.rates[e.kind]);
+  const legacy=affected.filter(e=>!valuedEvent(e).recalculated).length;
+  confirmAction('Recalculate entire session?',`${changed}. Revalue ${affected.length-legacy} past scoring events, including earlier games. ${legacy?legacy+' legacy event(s) lack details and will retain their original value. ':''}Manual adjustments remain fixed.`,apply);
+ }else apply();};
 $('resetBtn').onclick=()=>confirmAction('Reset session?',`Erase all ${state.events.length} results, scores and foul counts?`,async()=>{if(await commit(draft=>{draft.events=[]}))notify('Session reset')});
 for(const btn of document.querySelectorAll('[data-step-target]'))btn.onclick=()=>{const el=$(btn.dataset.stepTarget),min=Number(el.min||0),max=Number(el.max||10000);let v=Number(el.value);if(!Number.isFinite(v))v=min;el.value=String(Math.max(min,Math.min(max,Math.round(v)+Number(btn.dataset.step))));el.dispatchEvent(new Event('input',{bubbles:true}))};
 function settlementSummary(){const t=totals(),transfers=netTransfers(t.gameBalances);return ['NUMBER BALL — SETTLEMENT',`Completed games: ${gameNo()-1}`,`Bonus: ${cash(state.rates.bonus)} | Game: ${cash(state.rates.game)} | Foul: ${cash(state.rates.foul)}`,'', 'WHO PAYS WHOM',...(transfers.length?transfers.map(x=>`${name(x.from)} pays ${name(x.to)} ${cash(x.amount)}`):['No player transfers']),'','FOUL POOL — TABLE FEES',...state.players.map(p=>`${p.name}: ${t.fouls[p.id]} foul(s), ${cash(-t.foulBalances[p.id])}`),`Total: ${cash(t.pool)}`].join('\n')}
@@ -302,6 +328,6 @@ function showSettlement(){const t=totals(),transfers=netTransfers(t.gameBalances
 $('settlementBtn').onclick=showSettlement;
 $('copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(settlementSummary());notify('Settlement copied')}catch(e){notify('Clipboard unavailable; use CSV export')}};
 const csv=value=>'"'+String(value??'').replaceAll('"','""')+'"';
-$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(e.payerAmounts||{}).map(([id,v])=>`${name(id)}: ${v}`).join('; '):(e.payers||[]).map(name).join('; '),e.total??e.amount,e.quantity||0,e.poolDelta||0,e.reason||'']),[],['PLAYER','GAME + BONUS NET SGD','TABLE FEE CONTRIBUTION SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],-t.foulBalances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v080-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
+$('exportBtn').onclick=()=>{const t=totals(),transfers=netTransfers(t.gameBalances),rows=[['NUMBER BALL — PRIVATE SESSION EXPORT'],['TYPE','GAME','TIME','PLAYER','OTHER PLAYERS','VALUE SGD','FOUL COUNT','POOL DELTA SGD','NOTE'],...state.events.map(e=>[e.kind,e.gameNo,e.time,name(e.actor),e.kind==='bonus'||e.kind==='game'?Object.entries(valuedEvent(e).deltas).filter(([id,v])=>v<0).map(([id,v])=>`${name(id)}: ${-v}`).join('; '):(e.payers||[]).map(name).join('; '),valuedEvent(e).amount,e.quantity||0,valuedEvent(e).poolDelta,e.reason||'']),[],['PLAYER','GAME + BONUS NET SGD','TABLE FEE CONTRIBUTION SGD','GAMES','BONUSES','FOULS'],...state.players.map(p=>[p.name,t.balances[p.id],-t.foulBalances[p.id],t.games[p.id],t.bonuses[p.id],t.fouls[p.id]]),[],['FOUL POOL SGD',t.pool],[],['PAYS','RECEIVES','AMOUNT SGD'],...transfers.map(x=>[name(x.from),name(x.to),x.amount])];let blob=new Blob(['\ufeff'+rows.map(row=>row.map(csv).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='number-ball-session-v090-private.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);notify('Private CSV exported')};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 setupLanding();
